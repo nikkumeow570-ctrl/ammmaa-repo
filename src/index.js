@@ -44,26 +44,24 @@ function readSubscription(sub) {
 }
 
 
+
 async function voice(request, env) {
   try {
-    const body = await request.json().catch(()=>({}));
-    const id = body.id; const token = body.token;
-    /* free */
-    // Free voice - no login needed
-    // const row = await authed(env, body);
+    const body = await request.json().catch(()=>({ text: "Kutty, thanni kudichiya da?" }));
     const text = (body.text || "Kutty, thanni kudichiya da?").slice(0,200);
+    console.log("Voice request:", text);
     const audio = await env.AI.run('@cf/myshell-ai/melotts', {
       prompt: text,
-      speaker: "female-en-2",
-      language: "en"
+      speaker: "female-en-2"
     });
     return new Response(audio, {
-      headers: {'Content-Type':'audio/mpeg','Cache-Control':'no-cache'}
+      headers: { 'Content-Type': 'audio/mpeg', 'Access-Control-Allow-Origin': '*' }
     });
   } catch(e) {
-    return json({error:e.message},500);
+    return new Response(JSON.stringify({error:e.message, stack:e.stack}), {status:500, headers:{'Content-Type':'application/json'}});
   }
 }
+
 
 async function authed(env, body) {
   if (typeof body.id !== 'string' || typeof body.token !== 'string') throw new HttpError(401, 'Not signed in');
