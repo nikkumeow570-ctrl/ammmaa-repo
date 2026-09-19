@@ -48,8 +48,9 @@ async function voice(request, env) {
   try {
     const body = await request.json().catch(()=>({}));
     const id = body.id; const token = body.token;
-    if(!id || !token) return json({error:"auth"}, 401);
-    const row = await authed(env, body);
+    /* free */
+    // Free voice - no login needed
+    // const row = await authed(env, body);
     const text = (body.text || "Kutty, thanni kudichiya da?").slice(0,200);
     const audio = await env.AI.run('@cf/myshell-ai/melotts', {
       prompt: text,
