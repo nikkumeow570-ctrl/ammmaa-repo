@@ -8,11 +8,9 @@
     { "binding": "DB", "database_name": "ammmaa", "database_id": "2147543a-b9a2-4455-a129-55555f54ed88" }
   ],
   "ai": { "binding": "AI" },
-  "triggers": {
-    "crons": ["* * * * *", "0 21 * * *"]
-  },
+  "triggers": { "crons": ["* * * * *", "0 21 * * *"] },
   "vars": {
-    "VAPID_PUBLIC_KEY": "BANx3mm4wPHsOBev5wYeo18G2BZ5gdFWJrHTWNQLDNDyy3wx5u1MAX9h_Q7MYW6wsPBVXCG3F2sTqk1QxL-srMc",
+    "VAPID_PUBLIC_KEY": "BJR6SbUz4qddXNeB9AqTbGODmOTFXlwkkKCbPQ1p69weO6jL2T_GUveIFhDnVcatUvaJNR2EucXqGCsa2TOOFa8",
     "VAPID_SUBJECT": "mailto:you@example.com",
     "AI_VARIATIONS": "off"
   }
