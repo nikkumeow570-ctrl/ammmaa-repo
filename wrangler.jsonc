@@ -12,7 +12,7 @@
     "crons": ["* * * * *", "0 21 * * *"]
   },
   "vars": {
-    "VAPID_PUBLIC_KEY": "PASTE_PUBLIC_KEY_FROM_npm_run_keys",
+    "VAPID_PUBLIC_KEY": "BANx3mm4wPHsOBev5wYeo18G2BZ5gdFWJrHTWNQLDNDyy3wx5u1MAX9h_Q7MYW6wsPBVXCG3F2sTqk1QxL-srMc",
     "VAPID_SUBJECT": "mailto:you@example.com",
     "AI_VARIATIONS": "off"
   }
