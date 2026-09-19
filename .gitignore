@@ -1,10 +1,4 @@
 node_modules/
-.wrangler/
+gen-vapid*
+package-lock.json
 .dev.vars
-.env
-*.log
-.DS_Store
-# Android signing material (PWABuilder / bubblewrap): never commit
-*.keystore
-*.jks
-signing-key-info.txt
