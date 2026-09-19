@@ -10,7 +10,7 @@
   "ai": { "binding": "AI" },
   "triggers": { "crons": ["* * * * *", "0 21 * * *"] },
   "vars": {
-    "VAPID_PUBLIC_KEY": "[STRIPPED 87 bytes]",
+    "VAPID_PUBLIC_KEY": "BFSNekk6YGvOW3EtkOdLHbORTRsE05CWY6OtDbg-SQg4KyVyIeZl1hq_JBzqYqSCtEbIipMwkBMI51ejRF3Wmys",
     "VAPID_SUBJECT": "mailto:you@example.com",
     "AI_VARIATIONS": "off"
   }
