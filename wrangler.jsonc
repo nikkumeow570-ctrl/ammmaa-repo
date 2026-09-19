@@ -9,6 +9,7 @@
   ],
   "ai": { "binding": "AI" },
   "triggers": { "crons": ["* * * * *", "0 21 * * *"] },
+  "observability": { "enabled": true },
   "vars": {
     "VAPID_PUBLIC_KEY": "[STRIPPED 87 bytes]",
     "VAPID_SUBJECT": "mailto:you@example.com",

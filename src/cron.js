@@ -95,7 +95,7 @@ export async function runDue(env, now = Date.now(), send = sendPush) {
   // Phase 2: send in parallel.
   const outcomes = await Promise.all(
     jobs.map((j) =>
-      send(env, { endpoint: j.row.endpoint, p256dh: j.row.p256dh, auth: j.row.auth }, j.payload).catch(() => ({ ok: false, status: 0 })),
+      send(env, { endpoint: j.row.endpoint, p256dh: j.row.p256dh, auth: j.row.auth }, j.payload, { urgency: 'high' }).catch(() => ({ ok: false, status: 0 })),
     ),
   );
 
