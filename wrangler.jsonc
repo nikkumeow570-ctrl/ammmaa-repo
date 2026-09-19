@@ -1,0 +1,22 @@
+{
+  // Replace the two PASTE_* values below (see README), then deploy. Secrets are NOT stored here.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ammmaa",
+  "main": "src/index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "ammmaa", "database_id": "PASTE_ID_FROM_wrangler_d1_create" }
+  ],
+  "ai": { "binding": "AI" },
+  "triggers": {
+    // every minute: send due reminders. 21:00 UTC: refresh the AI-written message variations.
+    "crons": ["* * * * *", "0 21 * * *"]
+  },
+  "vars": {
+    "VAPID_PUBLIC_KEY": "PASTE_PUBLIC_KEY_FROM_npm_run_keys",
+    "VAPID_SUBJECT": "mailto:you@example.com",
+    "AI_VARIATIONS": "off"
+  }
+  // Secrets (set with `wrangler secret put`): VAPID_PRIVATE_KEY, APP_SECRET
+}

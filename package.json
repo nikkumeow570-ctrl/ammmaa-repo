@@ -1,0 +1,21 @@
+{
+  "name": "ammmaa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "keys": "node scripts/gen-vapid.mjs",
+    "db:create": "wrangler d1 create ammmaa",
+    "db:init": "wrangler d1 execute ammmaa --remote --file=schema.sql",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --no-warnings --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  },
+  "description": "Caring Amma-style reminders as a PWA: Web Push on Cloudflare Workers + D1",
+  "engines": {
+    "node": ">=22"
+  }
+}

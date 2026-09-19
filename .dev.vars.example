@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local `wrangler dev` (never commit .dev.vars).
+# Generate the key pair with: npm run keys
+VAPID_PRIVATE_KEY=
+APP_SECRET=

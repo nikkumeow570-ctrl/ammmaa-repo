@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+*.log
+.DS_Store
+# Android signing material (PWABuilder / bubblewrap): never commit
+*.keystore
+*.jks
+signing-key-info.txt
