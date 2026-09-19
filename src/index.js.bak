@@ -165,7 +165,6 @@ async function route(request, env) {
   if (post && pathname === '/api/update') return update(request, env);
   if (post && pathname === '/api/unsubscribe') return unsubscribe(request, env);
   if (post && pathname === '/api/test') return test(request, env);
-  
   if (post && pathname === '/api/snooze') return snooze(request, env);
   throw new HttpError(404, 'Not found');
 }
