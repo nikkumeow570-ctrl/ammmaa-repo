@@ -495,3 +495,33 @@ document.addEventListener('visibilitychange', () => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 render();
 syncOnOpen();
+
+// --- Amma AI Voice Option 2 ---
+async function playAmmaVoice(text){
+  const id = localStorage.getItem('id');
+  const token = localStorage.getItem('token');
+  if(!id||!token){ alert('Please login again'); return; }
+  try{
+    const res = await fetch('/api/voice',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id, token, text: text || "Kutty, thanni kudichiya da?"})
+    });
+    if(!res.ok){ const e=await res.text(); throw new Error(e); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = new Audio(url);
+    a.play();
+  }catch(e){ alert('Voice error: '+e.message); console.error(e); }
+}
+// Add button automatically if not exists
+setTimeout(()=>{
+  if(!document.getElementById('ammaVoiceBtn')){
+    const btn = document.createElement('button');
+    btn.id='ammaVoiceBtn';
+    btn.textContent='🔊 Hear Amma';
+    btn.style='position:fixed;bottom:20px;right:20px;padding:12px 18px;border-radius:25px;background:#ff4081;color:white;border:none;z-index:9999';
+    btn.onclick=()=>playAmmaVoice(document.querySelector('[data-msg]')?.dataset.msg || "Kutty, saptiya?");
+    document.body.appendChild(btn);
+  }
+},2000);

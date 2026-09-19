@@ -43,6 +43,27 @@ function readSubscription(sub) {
   return { endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth };
 }
 
+
+async function voice(request, env) {
+  try {
+    const body = await request.json().catch(()=>({}));
+    const id = body.id; const token = body.token;
+    if(!id || !token) return json({error:"auth"}, 401);
+    const row = await authed(env, body);
+    const text = (body.text || "Kutty, thanni kudichiya da?").slice(0,200);
+    const audio = await env.AI.run('@cf/myshell-ai/melotts', {
+      prompt: text,
+      speaker: "female-en-2",
+      language: "en"
+    });
+    return new Response(audio, {
+      headers: {'Content-Type':'audio/mpeg','Cache-Control':'no-cache'}
+    });
+  } catch(e) {
+    return json({error:e.message},500);
+  }
+}
+
 async function authed(env, body) {
   if (typeof body.id !== 'string' || typeof body.token !== 'string') throw new HttpError(401, 'Not signed in');
   const row = await env.DB.prepare('SELECT * FROM subs WHERE id = ?').bind(body.id).first();
@@ -165,6 +186,7 @@ async function route(request, env) {
   if (post && pathname === '/api/update') return update(request, env);
   if (post && pathname === '/api/unsubscribe') return unsubscribe(request, env);
   if (post && pathname === '/api/test') return test(request, env);
+  if (post && pathname === '/api/voice') return voice(request, env);
   if (post && pathname === '/api/snooze') return snooze(request, env);
   throw new HttpError(404, 'Not found');
 }
