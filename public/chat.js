@@ -1,7 +1,7 @@
-// Chat with Amma. A full-screen sheet that lives outside the app's render loop.
+// Chat with Amma. One persistent panel: the app re-attaches it to the Chat tab after every render, so what was typed,
+// the conversation and the microphone state survive re-renders.
 import { ammaSvg } from './amma.js';
 import { pickLine } from './shared.js';
-import { mountSheet } from './own.js';
 import { canHear, hear, canListen, listen, stopAudio } from './voice.js';
 
 const STORE = 'ammmaa.chat.v1';
@@ -27,9 +27,11 @@ function loadLog() {
 /**
  * @param ctx { lang(), tone(), id(), token(), api(path, body), onLost() }
  */
-export function openChat(ctx) {
-  const sheet = mountSheet('Chat with Amma');
-  sheet.el.classList.add('chat');
+export function createChat(ctx) {
+  const el = document.createElement('section');
+  el.className = 'chat-tab';
+  el.setAttribute('aria-label', 'Chat with Amma');
+  const sheet = { el, body: el };
   const msgs = loadLog();
   let busy = false;
   let left = null;
@@ -40,7 +42,6 @@ export function openChat(ctx) {
     <header class="chat-head">
       <div class="avatar">${ammaSvg(mood(), { decorative: true })}</div>
       <div class="chat-title"><b>Amma</b><small>An AI character, not a real person</small></div>
-      <button type="button" class="x" data-c="close" aria-label="Close chat">&times;</button>
     </header>
     <p class="chat-disclose">Your messages are sent to an AI service so it can write Amma's reply. Please don't share private details. <button type="button" class="link" data-c="clear">Clear chat</button></p>
     <div class="chat-log" role="log" aria-live="polite"></div>
@@ -90,10 +91,7 @@ export function openChat(ctx) {
       if (out.limited) setNote("That's all the chatting for today. Amma will be back tomorrow, and her reminders keep coming.");
       else if (left !== null && left <= 3) setNote(`${left} chat message${left === 1 ? '' : 's'} left today.`);
     } catch (e) {
-      if (e && e.status === 401) {
-        sheet.close();
-        return ctx.onLost();
-      }
+      if (e && e.status === 401) return ctx.onLost();
       msgs.pop(); // the message did not go through, so do not keep it in the conversation
       input.value = text;
       setNote("Amma can't hear you right now. Check your connection and try again.");
@@ -105,18 +103,16 @@ export function openChat(ctx) {
     }
   }
 
-  const close = () => {
+  // Called when the person leaves the Chat tab.
+  const pause = () => {
     if (listening) listening.stop();
     stopAudio();
-    sheet.close();
   };
-  sheet.el.addEventListener('sheet-close', close);
 
   sheet.el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-c]');
     if (!b) return;
     switch (b.dataset.c) {
-      case 'close': return close();
       case 'clear':
         msgs.length = 0;
         save();
@@ -151,7 +147,23 @@ export function openChat(ctx) {
   });
 
   draw();
-  input.focus({ preventScroll: true });
+
+  const head = el.querySelector('.chat-head');
+  // Language or mood may have changed on the More tab since the panel was last shown.
+  const refresh = () => {
+    head.querySelector('.avatar').innerHTML = ammaSvg(mood(), { decorative: true });
+    draw();
+  };
+  return {
+    el,
+    pause,
+    attached() {
+      refresh();
+      log.scrollTop = log.scrollHeight;
+    },
+    hasFocus: () => document.activeElement === input,
+    focus: () => input.focus({ preventScroll: true }),
+  };
 }
 
 export function clearChat() {

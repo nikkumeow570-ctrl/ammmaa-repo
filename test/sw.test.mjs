@@ -37,10 +37,11 @@ function boot({ caches: cacheData = {}, clientsList = [] } = {}) {
 const req = (path) => ({ method: 'GET', url: `https://app.test${path}`, mode: 'no-cors' });
 
 test('sw: updating the app removes old app caches but never the person\'s own photo', async () => {
-  const sw = boot({ caches: { 'ammmaa-v1': {}, 'ammmaa-v3': {}, 'ammmaa-v4': {}, 'ammmaa-local': { '/local/amma.jpg': 'photo' } } });
+  const CURRENT = /const CACHE = '([^']+)'/.exec(readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'))[1]; // whatever the current version is
+  const sw = boot({ caches: { 'ammmaa-v1': {}, 'ammmaa-v3': {}, [CURRENT]: {}, 'ammmaa-local': { '/local/amma.jpg': 'photo' } } });
   await sw.fire('activate', {});
   assert.deepEqual(sw.deleted.sort(), ['ammmaa-v1', 'ammmaa-v3']);
-  assert.ok(sw.store.has('ammmaa-local') && sw.store.has('ammmaa-v4'));
+  assert.ok(sw.store.has('ammmaa-local') && sw.store.has(CURRENT));
 });
 
 test('sw: /local/amma.jpg comes from the local cache, audio and the API are left to the network', async () => {

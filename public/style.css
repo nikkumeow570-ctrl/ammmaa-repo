@@ -16,6 +16,7 @@
   --body: 'Hind Madurai', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar: 66px;
   color-scheme: light;
 }
 
@@ -229,7 +230,8 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 350px) { .welcome-copy h1 { font-size: 26px; } .say-big { font-size: 21px; } }
 
 /* ---------- Talk to Amma, hear Amma, your own Amma ---------- */
-.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; }
+.hero-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.hero-actions .chip { flex: 1 1 0; min-width: 0; padding: 0 10px; white-space: nowrap; }
 .chip {
   min-height: 44px; padding: 0 18px; border-radius: 999px; border: 2px solid rgba(255, 244, 220, 0.4);
   background: rgba(255, 244, 220, 0.12); color: var(--cream); font: 700 16px var(--display); cursor: pointer;
@@ -266,8 +268,7 @@ button, input, select { font: inherit; color: inherit; }
 .rec-btn.on span { width: 34px; height: 34px; border-radius: 10px; animation: pulse 1.2s infinite; }
 .rec-time { text-align: center; font: 800 30px var(--display); color: var(--peacock); margin: 10px 0 0; }
 
-.overlay.chat { align-items: stretch; }
-.overlay.chat .sheet { max-height: none; height: 100vh; height: 100dvh; border-radius: 0; display: flex; flex-direction: column; padding: calc(var(--safe-top) + 12px) 14px calc(var(--safe-bottom) + 10px); overflow: hidden; }
+.chat-tab { display: flex; flex-direction: column; height: calc(100vh - var(--tabbar) - var(--safe-bottom)); height: calc(100dvh - var(--tabbar) - var(--safe-bottom)); padding: calc(var(--safe-top) + 12px) 14px 8px; overflow: hidden; }
 .chat-head { display: flex; align-items: center; gap: 12px; }
 .chat-head .avatar { flex: 0 0 52px; width: 52px; height: 52px; box-shadow: none; }
 .chat-head .avatar .amma { width: 104px; margin: -19px 0 0 -26px; }
@@ -299,3 +300,25 @@ button, input, select { font: inherit; color: inherit; }
 
 .fine-link, .privacy-link a { color: inherit; text-underline-offset: 3px; }
 .privacy-link { margin: 26px 4px 0; text-align: center; font-size: 15px; color: var(--muted); }
+
+/* ---------- Tabs ---------- */
+.tabbar {
+  position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 40; width: 100%; max-width: 520px;
+  display: flex; padding: 6px 6px calc(var(--safe-bottom) + 6px); background: rgba(255, 251, 241, 0.94);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid rgba(12, 75, 71, 0.12);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 54px; padding: 3px 0; border: 0;
+  background: none; color: var(--muted); font: 700 12px var(--display); cursor: pointer;
+}
+.tab-ico { display: grid; place-items: center; width: 54px; height: 30px; border-radius: 999px; transition: background 0.2s, transform 0.15s; }
+.tab:active .tab-ico { transform: scale(0.94); }
+.tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab[aria-current='page'] { color: var(--peacock); }
+.tab[aria-current='page'] .tab-ico { background: var(--haldi-soft); }
+.with-tabs .toast { bottom: calc(var(--safe-bottom) + var(--tabbar) + 16px); }
+.home-body { padding: 16px 18px calc(var(--tabbar) + var(--safe-bottom) + 24px); }
+.panel { padding: calc(var(--safe-top) + 22px) 18px calc(var(--tabbar) + var(--safe-bottom) + 32px); }
+.page-title { font: 800 30px/1.15 var(--display); color: var(--peacock); }
+.page-sub { color: var(--muted); margin: 2px 0 14px; }
+.panel .section:first-of-type { margin-top: 18px; }

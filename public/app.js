@@ -1,7 +1,7 @@
 import { LANGS, TONES, DEFAULTS, normalizeSettings, buildSlots, pickLine } from './shared.js';
 import { ammaSvg } from './amma.js';
 import * as V from './voice.js';
-import { openChat } from './chat.js';
+import { createChat } from './chat.js';
 import { openRecorder, pickPhoto } from './own.js';
 
 const KEY = 'ammmaa.v1';
@@ -28,9 +28,15 @@ function load() {
 let state = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(state));
 
+// ---------- Tabs (Home, Chat, Reminders, More) ----------
+const TABS = ['home', 'chat', 'reminders', 'more'];
+const tabFromHash = () => (TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home');
+let chatPanel = null; // one persistent chat panel, re-attached to the Chat tab after every render
+
 // ---------- Screen state (not persisted) ----------
 const ui = {
   view: state.id ? 'home' : 'welcome',
+  tab: tabFromHash(),
   step: 0,
   kind: 'meal',
   line: '',
@@ -258,51 +264,96 @@ function setup() {
   </main>`;
 }
 
-function home() {
+const TAB_META = [
+  ['home', 'Home', '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/>'],
+  ['chat', 'Chat', '<path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>'],
+  ['reminders', 'Reminders', '<path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>'],
+  ['more', 'More', '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>'],
+];
+
+function tabbar() {
+  return `<nav class="tabbar" aria-label="Main">${TAB_META.map(
+    ([id, label, icon]) =>
+      `<button type="button" class="tab" data-act="tab" data-tab="${id}"${ui.tab === id ? ' aria-current="page"' : ''}><span class="tab-ico"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span><span>${label}</span></button>`,
+  ).join('')}</nav>`;
+}
+
+function blockedNote() {
+  return ui.perm === 'denied'
+    ? `<div class="note" role="alert">Notifications are blocked for this site, so Amma can't reach you. Turn them on in your browser's site settings.</div>`
+    : ui.needsResub
+      ? `<div class="note" role="alert">Amma lost her way to this phone. <button type="button" class="link" data-act="enable">Turn notifications back on</button></div>`
+      : '';
+}
+
+function homeTab() {
   const s = state.settings;
   const n = nextUp();
-  const blocked =
-    ui.perm === 'denied'
-      ? `<div class="note" role="alert">Notifications are blocked for this site, so Amma can't reach you. Turn them on in your browser's site settings.</div>`
-      : ui.needsResub
-        ? `<div class="note" role="alert">Amma lost her way to this phone. <button type="button" class="link" data-act="enable">Turn notifications back on</button></div>`
-        : '';
-  const banner = ui.hear && V.canHear({ kind: ui.hear.kind, text: ui.hear.text, lang: s.lang }) ? '<button type="button" class="hear-banner" data-act="hear-banner">▶ Amma sent you a message. Tap to hear her</button>' : '';
-  return `<div class="home">
-    <header class="hero">
+  const banner = ui.hear && V.canHear({ kind: ui.hear.kind, text: ui.hear.text, lang: s.lang }) ? '<button type="button" class="hear-banner" data-act="hear-banner">🔊 Amma sent you a message. Tap to hear her</button>' : '';
+  return `<header class="hero">
       <div class="brand">Ammmaa<small lang="ta">அம்மா</small></div>
       ${banner}
       <button type="button" class="say-big" data-act="another" lang="${langAttr(s.lang)}" aria-label="Amma says: ${esc(ui.line)}. Tap for another.">${esc(ui.line)}</button>
       <div class="hero-actions">${V.canHear({ kind: ui.kind, text: ui.line, lang: s.lang }) ? '<button type="button" class="chip" data-act="hear">🔊 Hear Amma</button>' : ''}<button type="button" class="chip chip-gold" data-act="chat">💬 Talk to Amma</button></div>
       <div class="hero-art">${V.own.photoUrl ? `<img class="own-photo" src="${V.own.photoUrl}" alt="Your Amma">` : ammaSvg(mood(), { label: 'Amma' })}</div>
     </header>
-    <div class="next-card"><span class="ico" aria-hidden="true">⏰</span><div>${n ? `<small>Next reminder</small><b>${esc(n.label)}</b> ${esc(n.when)}` : 'No reminders are on. Turn one on below.'}</div></div>
-    <main class="sheet"><div class="sheet-in">
-      ${blocked}
-      <section class="section"><h3>How Amma talks</h3>${talkForm(false)}</section>
-      <section class="section"><h3>Reminders</h3>${remindersForm()}</section>
-      <section class="section"><h3>Quiet hours</h3><p>Amma stays quiet in this window, except for bedtime and good morning.</p>${quietForm()}</section>
-      ${ownSection()}
-      <section class="section"><h3>This phone</h3>
-        <div class="stack">
-          <button type="button" class="btn btn-primary btn-block" data-act="test" ${ui.busy ? 'disabled' : ''}>Send a test message</button>
-          <button type="button" class="btn btn-ghost btn-block" data-act="status" ${ui.busy ? 'disabled' : ''}>Check my reminders</button>
-          ${statusPanel()}
-          <button type="button" class="btn btn-ghost btn-block" data-act="voice-check">Voice check</button>
-          ${voicePanel()}
-          ${installButton()}
-          <button type="button" class="btn btn-danger btn-block" data-act="off">Turn off Amma on this phone</button>
-        </div>
-      </section>
-      <p class="privacy-link"><a href="/privacy.html">Privacy: what Amma keeps and where it goes</a></p>
-    </div></main>
-  </div>`;
+    <div class="next-card"><span class="ico" aria-hidden="true">⏰</span><div>${n ? `<small>Next reminder</small><b>${esc(n.label)}</b> ${esc(n.when)}` : 'No reminders are on. Turn one on in Reminders.'}</div></div>
+    <div class="home-body">${blockedNote()}</div>`;
+}
+
+function remindersTab() {
+  return `<main class="panel">
+    <h1 class="page-title">Reminders</h1>
+    <p class="page-sub">Turn on what you need and set the times.</p>
+    ${blockedNote()}
+    ${remindersForm()}
+    <section class="section"><h3>Quiet hours</h3><p>Amma stays quiet in this window, except for bedtime and good morning.</p>${quietForm()}</section>
+  </main>`;
+}
+
+function moreTab() {
+  return `<main class="panel">
+    <h1 class="page-title">More</h1>
+    <section class="section"><h3>How Amma talks</h3>${talkForm(false)}</section>
+    ${ownSection()}
+    <section class="section"><h3>This phone</h3>
+      <div class="stack">
+        <button type="button" class="btn btn-primary btn-block" data-act="test" ${ui.busy ? 'disabled' : ''}>Send a test message</button>
+        <button type="button" class="btn btn-ghost btn-block" data-act="status" ${ui.busy ? 'disabled' : ''}>Check my reminders</button>
+        ${statusPanel()}
+        <button type="button" class="btn btn-ghost btn-block" data-act="voice-check">Voice check</button>
+        ${voicePanel()}
+        ${installButton()}
+        <button type="button" class="btn btn-danger btn-block" data-act="off">Turn off Amma on this phone</button>
+      </div>
+    </section>
+    <p class="privacy-link"><a href="/privacy.html">Privacy: what Amma keeps and where it goes</a></p>
+  </main>`;
+}
+
+function home() {
+  const body = ui.tab === 'chat' ? '<div id="chat-slot"></div>' : ui.tab === 'reminders' ? remindersTab() : ui.tab === 'more' ? moreTab() : homeTab();
+  return `<div class="home tab-${ui.tab}">${body}</div>${tabbar()}`;
+}
+
+function attachChat(refocus) {
+  const slot = app.querySelector('#chat-slot');
+  if (!slot) return;
+  if (!chatPanel) {
+    chatPanel = createChat({ lang: () => state.settings.lang, tone: () => state.settings.tone, id: () => state.id, token: () => state.token, api, onLost: lostServerRecord });
+  }
+  slot.replaceWith(chatPanel.el);
+  chatPanel.attached();
+  if (refocus) chatPanel.focus();
 }
 
 function render() {
   const y = window.scrollY;
   if (!ui.line) newLine(false);
+  const chatHadFocus = !!(chatPanel && chatPanel.hasFocus());
   app.innerHTML = (ui.view === 'welcome' ? welcome() : ui.view === 'setup' ? setup() : home()) + (ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '');
+  app.classList.toggle('with-tabs', ui.view === 'home');
+  if (ui.view === 'home' && ui.tab === 'chat') attachChat(chatHadFocus);
   if (ui.focusSel) {
     const el = app.querySelector(ui.focusSel);
     if (el) el.focus({ preventScroll: true });
@@ -311,7 +362,32 @@ function render() {
   window.scrollTo(0, y);
 }
 
+function setTab(tab) {
+  if (!TABS.includes(tab) || ui.view !== 'home') return;
+  if (tab === ui.tab) return window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (ui.tab === 'chat' && chatPanel) chatPanel.pause();
+  ui.tab = tab;
+  history.pushState(null, '', tab === 'home' ? location.pathname + location.search : `#${tab}`);
+  render();
+  window.scrollTo(0, 0);
+}
+
+// The phone's back button walks back through the tabs instead of closing the app.
+window.addEventListener('popstate', () => {
+  if (ui.view !== 'home') return;
+  const t = tabFromHash();
+  if (t === ui.tab) return;
+  if (ui.tab === 'chat' && chatPanel) chatPanel.pause();
+  ui.tab = t;
+  render();
+  window.scrollTo(0, 0);
+});
+
 function go(view, step = 0) {
+  if (view === 'home' && ui.view !== 'home') {
+    ui.tab = 'home';
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   ui.view = view;
   ui.step = step;
   ui.error = '';
@@ -589,8 +665,8 @@ app.addEventListener('click', (e) => {
       render();
       return doHear(h);
     }
-    case 'chat':
-      return openChat({ lang: () => state.settings.lang, tone: () => state.settings.tone, id: () => state.id, token: () => state.token, api, onLost: lostServerRecord });
+    case 'chat': return setTab('chat');
+    case 'tab': return setTab(el.dataset.tab);
     case 'photo': return pickPhoto(() => toast('Photo saved on this phone.'), () => toast("Couldn't use that photo. Try another one."));
     case 'photo-del': return V.removePhoto().then(render);
     case 'rec': return openRecorder({ kind: el.dataset.kind, label: el.dataset.label, onSaved: () => toast("Saved on this phone. Tap Hear Amma to try it.") });

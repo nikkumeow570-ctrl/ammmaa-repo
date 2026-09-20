@@ -1,4 +1,4 @@
-const CACHE = 'ammmaa-v4';
+const CACHE = 'ammmaa-v5';
 const LOCAL = 'ammmaa-local'; // the person's own photo (never deleted when the app updates)
 const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/amma.js', '/voice.js', '/own.js', '/chat.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
