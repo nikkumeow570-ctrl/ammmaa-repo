@@ -154,6 +154,22 @@ async function snooze(request, env) {
   return json({ ok: true });
 }
 
+// What the server believes about this phone: lets the app show whether the scheduler is alive.
+async function status(request, env) {
+  const row = await authed(env, await readJson(request));
+  const now = Date.now();
+  const { results } = await env.DB.prepare('SELECT kind, local_time, dow, once, next_due FROM slots WHERE sub_id = ? ORDER BY next_due LIMIT 60').bind(row.id).all();
+  return json({
+    now,
+    tz: row.tz,
+    slots: results.map((s) => ({ kind: s.kind, time: s.local_time, dow: s.dow, once: !!s.once, due: s.next_due })),
+    // due more than 2 minutes ago and still waiting: the every-minute cron is not processing slots
+    overdue: results.filter((s) => now - s.next_due > 2 * 60 * 1000).length,
+    sentToday: row.sent_count || 0,
+    fails: row.fail_count || 0,
+  });
+}
+
 async function route(request, env) {
   const { pathname } = new URL(request.url);
   const post = request.method === 'POST';
@@ -165,8 +181,8 @@ async function route(request, env) {
   if (post && pathname === '/api/update') return update(request, env);
   if (post && pathname === '/api/unsubscribe') return unsubscribe(request, env);
   if (post && pathname === '/api/test') return test(request, env);
-  
   if (post && pathname === '/api/snooze') return snooze(request, env);
+  if (post && pathname === '/api/status') return status(request, env);
   throw new HttpError(404, 'Not found');
 }
 

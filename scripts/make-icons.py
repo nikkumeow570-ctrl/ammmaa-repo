@@ -1,63 +1,66 @@
-# Draws the Ammmaa icons (a chat bubble with "typing" dots). Needs Pillow: pip install pillow
-from PIL import Image, ImageDraw
+#!/usr/bin/env python3
+"""Render the app icons from the Amma illustration in public/amma.js.
 
-PEACOCK = (12, 75, 71, 255)
-ZARI = (242, 182, 50, 255)
-SILK = (179, 20, 95, 255)
+Needs: pip install playwright && playwright install chromium   (developer tool only, not used at runtime)
+Usage: python3 scripts/make-icons.py
+Writes public/icons/{icon-192,icon-512,icon-maskable-512,apple-touch-icon,badge-96}.png
+"""
+import functools, http.server, pathlib, socketserver, threading
+from playwright.sync_api import sync_playwright
 
-def bubble(d, box, radius, fill, tail=True):
-    x0, y0, x1, y1 = box
-    d.rounded_rectangle(box, radius=radius, fill=fill)
-    if tail:
-        w = x1 - x0
-        d.polygon([(x0 + w * 0.10, y1 - radius * 0.6), (x0 + w * 0.10, y1 + w * 0.13), (x0 + w * 0.34, y1 - radius * 0.2)], fill=fill)
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+PUBLIC = ROOT / 'public'
+OUT = PUBLIC / 'icons'
+PORT = 8793
+PEACOCK = '#0C4B47'
 
-def dots(d, box, r, fill):
-    x0, y0, x1, y1 = box
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    gap = (x1 - x0) * 0.22
-    for i in (-1, 0, 1):
-        d.ellipse((cx + i * gap - r, cy - r, cx + i * gap + r, cy + r), fill=fill)
+class Quiet(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
 
-def icon(size, bg='rounded', scale=1.0, out=None):
-    S = 4
-    n = size * S
-    im = Image.new('RGBA', (n, n), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    if bg == 'rounded':
-        d.rounded_rectangle((0, 0, n - 1, n - 1), radius=int(n * 0.22), fill=PEACOCK)
-    else:
-        d.rectangle((0, 0, n, n), fill=PEACOCK)
-    bw, bh = n * 0.60 * scale, n * 0.40 * scale
-    cx, cy = n / 2, n * 0.47
-    box = (cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2)
-    bubble(d, box, bh * 0.42, ZARI)
-    dots(d, box, bh * 0.085, PEACOCK)
-    # a silk-magenta bindi above the bubble's corner
-    r = n * 0.045 * scale
-    d.ellipse((box[2] - r * 2.2, box[1] - r * 3.2, box[2] - r * 0.2, box[1] - r * 1.2), fill=SILK)
-    im = im.resize((size, size), Image.LANCZOS)
-    if out:
-        im.save(out)
-    return im
+BADGE_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" fill="#fff">
+  <circle cx="48" cy="16" r="9"/><ellipse cx="48" cy="44" rx="23" ry="26"/>
+  <path d="M6 96 C8 74 26 66 48 66 C70 66 88 74 90 96 Z"/></svg>"""
 
-def badge(size, out):
-    S = 4
-    n = size * S
-    mask = Image.new('L', (n, n), 0)
-    d = ImageDraw.Draw(mask)
-    bw, bh = n * 0.78, n * 0.52
-    box = ((n - bw) / 2, n * 0.14, (n + bw) / 2, n * 0.14 + bh)
-    bubble(d, box, bh * 0.42, 255)
-    dots(d, box, bh * 0.10, 0)
-    mask = mask.resize((size, size), Image.LANCZOS)
-    im = Image.new('RGBA', (size, size), (255, 255, 255, 0))
-    im.putalpha(mask)
-    im.save(out)
+def render(page, name, size, html, transparent=False):
+    page.set_viewport_size({'width': size, 'height': size})
+    page.set_content(html)
+    page.evaluate('document.fonts && document.fonts.ready')
+    page.wait_for_timeout(150)
+    page.screenshot(path=str(OUT / name), omit_background=transparent)
+    print('wrote', name)
 
-icon(192, 'rounded', 1.0, 'public/icons/icon-192.png')
-icon(512, 'rounded', 1.0, 'public/icons/icon-512.png')
-icon(512, 'full', 0.78, 'public/icons/icon-maskable-512.png')   # keep art inside the 80% safe zone
-icon(180, 'full', 0.9, 'public/icons/apple-touch-icon.png')      # iOS wants an opaque square
-badge(96, 'public/icons/badge-96.png')
-print('icons written')
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    socketserver.TCPServer.allow_reuse_address = True
+    httpd = socketserver.TCPServer(('127.0.0.1', PORT), functools.partial(Quiet, directory=str(PUBLIC)))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(f'http://127.0.0.1:{PORT}/nothing')
+        svg = page.evaluate("async () => (await import('/amma.js')).ammaSvg('loving', { decorative: true })")
+        base = ('<style>*{margin:0;box-sizing:border-box}html,body{background:transparent}'
+                '.amma *{animation:none!important}.amma .heart{display:none}</style>')
+
+        def shell(size, radius, height_pct, top):
+            # `top` = distance from the top edge to the top of the illustration, in % of the icon size
+            return (f'{base}<div style="width:{size}px;height:{size}px;background:{PEACOCK};border-radius:{radius};'
+                    f'overflow:hidden;position:relative">'
+                    f'<div style="position:absolute;left:0;right:0;top:{top}%;display:flex;justify-content:center">'
+                    f'{svg.replace("<svg", f"<svg style=\'height:{int(size*height_pct)}px;width:auto\'", 1)}</div></div>')
+
+        # purpose "any": rounded square, bust anchored to the bottom
+        render(page, 'icon-512.png', 512, shell(512, '112px', 0.90, 10), transparent=True)
+        render(page, 'icon-192.png', 192, shell(192, '42px', 0.90, 10), transparent=True)
+        # maskable: full bleed, face kept inside the central safe zone
+        render(page, 'icon-maskable-512.png', 512, shell(512, '0', 1.02, 10))
+        # iOS rounds the corners itself: full-bleed square
+        render(page, 'apple-touch-icon.png', 180, shell(180, '0', 0.94, 8))
+        # Android status-bar badge: white silhouette on transparent
+        render(page, 'badge-96.png', 96, f'{base}{BADGE_SVG}', transparent=True)
+        browser.close()
+    httpd.shutdown()
+
+if __name__ == '__main__':
+    main()

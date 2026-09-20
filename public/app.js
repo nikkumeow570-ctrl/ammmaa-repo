@@ -1,4 +1,5 @@
 import { LANGS, TONES, DEFAULTS, normalizeSettings, buildSlots, pickLine } from './shared.js';
+import { ammaSvg } from './amma.js';
 
 const KEY = 'ammmaa.v1';
 const app = document.getElementById('app');
@@ -38,9 +39,12 @@ const ui = {
   needsResub: false,
   installEvent: null,
   focusSel: '',
+  status: null,
 };
 
-const PREVIEW_KINDS = ['meal', 'water', 'break', 'morning'];
+const PREVIEW_KINDS = ['meal', 'water', 'break', 'morning', 'bedtime'];
+// Amma's face follows the mood the person picked; bedtime lines make her sleepy.
+const mood = () => (ui.kind === 'bedtime' ? 'sleepy' : state.settings.tone);
 function newLine(vary) {
   const s = state.settings;
   if (vary) ui.kind = PREVIEW_KINDS[Math.floor(Math.random() * PREVIEW_KINDS.length)];
@@ -132,7 +136,7 @@ const tf = (label, path, value) =>
 
 function sel(label, path, options, current) {
   const list = options.some(([v]) => v === current) ? options : [[current, String(current)], ...options];
-  return `<label class="tfield"><span>${label}</span><select class="pick" data-path="${path}" data-num>${list
+  return `<label class="tfield wide"><span>${label}</span><select class="pick" data-path="${path}" data-num>${list
     .map(([v, t]) => `<option value="${v}"${v === current ? ' selected' : ''}>${t}</option>`)
     .join('')}</select></label>`;
 }
@@ -149,13 +153,14 @@ function seg(label, id, path, items, current) {
 function talkForm(withPreview) {
   const s = state.settings;
   return (
-    seg('Language', 'l-lang', 'lang', LANGS, s.lang) +
-    seg('Mood', 'l-tone', 'tone', TONES, s.tone) +
+    `<div class="card">${seg('Language', 'l-lang', 'lang', LANGS, s.lang)}${seg('Mood', 'l-tone', 'tone', TONES, s.tone)}</div>` +
     (withPreview
       ? `<div class="preview"><p class="bubble own" lang="${langAttr(s.lang)}">${esc(ui.line)}</p><button type="button" class="link" data-act="another">Hear another</button></div>`
       : '')
   );
 }
+
+const KIND_EMOJI = { meals: '🍛', water: '💧', breaks: '🧘', call: '📞', bedtime: '🌙', morning: '☀️' };
 
 function remindersForm() {
   const r = state.settings.reminders;
@@ -170,9 +175,9 @@ function remindersForm() {
   return `<div class="rows">${rows
     .map(
       ([k, title, hint, sub]) =>
-        `<div class="row"><label class="row-main" for="sw-${k}"><span class="row-title">${title}</span><span class="row-hint">${hint}</span></label><input id="sw-${k}" class="switch" type="checkbox" role="switch" data-path="reminders.${k}.on" data-rerender${r[k].on ? ' checked' : ''}></div>${
+        `<div class="rcard${r[k].on ? ' on' : ''}"><div class="row"><span class="badge" aria-hidden="true">${KIND_EMOJI[k]}</span><label class="row-main" for="sw-${k}"><span class="row-title">${title}</span><span class="row-hint">${hint}</span></label><input id="sw-${k}" class="switch" type="checkbox" role="switch" data-path="reminders.${k}.on" data-rerender${r[k].on ? ' checked' : ''}></div>${
           r[k].on ? `<div class="sub">${sub}</div>` : ''
-        }`,
+        }</div>`,
     )
     .join('')}</div>`;
 }
@@ -202,42 +207,46 @@ const installButton = () =>
 
 // ---------- Screens ----------
 function welcome() {
-  return `<main class="screen welcome dark">
-    <div class="zari" aria-hidden="true"></div>
-    <div class="welcome-body">
-      <span class="wordmark">Ammmaa</span>
-      <h1 class="amma" lang="ta">அம்மா</h1>
-      <div class="thread" role="img" aria-label="Amma asks: Have you eaten?">
-        <div class="typing" aria-hidden="true"><i></i><i></i><i></i></div>
-        <p class="bubble in" lang="ta">சாப்பிட்டியா?</p>
+  return `<main class="welcome">
+    <div class="brand">Ammmaa<small lang="ta">அம்மா</small></div>
+    <div class="stage">
+      <div class="bubble pop" role="img" aria-label="Amma asks: Have you eaten?">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="say" lang="ta">சாப்பிட்டியா?</span>
       </div>
-      <p class="gloss">Have you eaten?</p>
+      <div class="arch">${ammaSvg('loving', { label: 'Amma, smiling warmly' })}</div>
+    </div>
+    <div class="welcome-copy">
+      <h1>Someone at home is thinking of you.</h1>
+      <p>Gentle reminders in Tamil, Tanglish or English.</p>
     </div>
     <div class="welcome-foot">
-      <button type="button" class="btn btn-primary btn-block" data-act="start">Set up Amma</button>
+      <button type="button" class="btn btn-gold btn-block" data-act="start">Set up Amma</button>
       <p class="fine">No sign-up. We keep only your reminder times and a push address.</p>
     </div>
   </main>`;
 }
 
+const ASKS = ['How should I talk to you, kanna?', 'What shall I remind you about?', 'Let me message you.'];
+
 function setup() {
   const step = ui.step;
   const bodies = [
-    `<h2 class="title">How should Amma talk to you?</h2><p class="lede">Pick a language and a mood. You can change both later.</p>${talkForm(true)}`,
-    `<h2 class="title">What should she remind you about?</h2><p class="lede">Turn on what you need and set the times.</p>${remindersForm()}
-     <section class="section"><h3>Quiet hours</h3><p>Amma stays quiet in this window, except for bedtime and good morning.</p>${quietForm()}</section>`,
-    `<h2 class="title">Let Amma message you</h2><p class="lede">Reminders arrive as notifications, even when the app is closed. Your reminder times and a push address are stored so she knows when to write. No account needed.</p>
+    `<p class="lede">Pick a language and a mood. You can change both later.</p>${talkForm(true)}`,
+    `<p class="lede">Turn on what you need and set the times.</p>${remindersForm()}
+     <section class="section"><h3>Quiet hours</h3><p>I stay quiet in this window, except for bedtime and good morning.</p>${quietForm()}</section>`,
+    `<p class="lede">Reminders arrive as notifications, even when the app is closed. Your reminder times and a push address are stored so I know when to write. No account needed.</p>
      ${iosNote()}${errorNote()}<div class="stack">${installButton()}</div>`,
   ];
   const back = `<button type="button" class="btn btn-ghost" data-act="back" ${step === 0 ? 'hidden' : ''}>Back</button>`;
   const next =
     step < 2
       ? `<button type="button" class="btn btn-primary" data-act="next">Next</button>`
-      : `<button type="button" class="btn btn-primary" data-act="enable" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Setting up…' : 'Turn on notifications'}</button>`;
-  return `<main class="screen light">
-    <div class="zari" aria-hidden="true"></div>
+      : `<button type="button" class="btn btn-primary" data-act="enable" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Setting up...' : 'Turn on notifications'}</button>`;
+  return `<main class="setup">
     <div class="setup-main">
       <div class="progress" role="img" aria-label="Step ${step + 1} of 3">${[0, 1, 2].map((i) => `<span class="${i <= step ? 'on' : ''}"></span>`).join('')}</div>
+      <div class="ask"><div class="avatar">${ammaSvg(mood(), { decorative: true })}</div><h2 class="bubble">${ASKS[step]}</h2></div>
       ${bodies[step]}
     </div>
     <div class="bar">${back}${next}</div>
@@ -253,16 +262,14 @@ function home() {
       : ui.needsResub
         ? `<div class="note" role="alert">Amma lost her way to this phone. <button type="button" class="link" data-act="enable">Turn notifications back on</button></div>`
         : '';
-  return `<div class="screen">
-    <header class="hero dark">
-      <div class="zari" aria-hidden="true"></div>
-      <div class="hero-in">
-        <span class="wordmark">Ammmaa</span>
-        <button type="button" class="bubble in" data-act="another" lang="${langAttr(s.lang)}" aria-label="Amma says: ${esc(ui.line)}. Tap for another.">${esc(ui.line)}</button>
-        <p class="next">${n ? `Next: <b>${esc(n.label)}</b> ${esc(n.when)}` : 'No reminders are on. Turn one on below.'}</p>
-      </div>
+  return `<div class="home">
+    <header class="hero">
+      <div class="brand">Ammmaa<small lang="ta">அம்மா</small></div>
+      <button type="button" class="say-big" data-act="another" lang="${langAttr(s.lang)}" aria-label="Amma says: ${esc(ui.line)}. Tap for another.">${esc(ui.line)}</button>
+      <div class="hero-art">${ammaSvg(mood(), { label: 'Amma' })}</div>
     </header>
-    <main class="sheet light"><div class="sheet-in">
+    <div class="next-card"><span class="ico" aria-hidden="true">⏰</span><div>${n ? `<small>Next reminder</small><b>${esc(n.label)}</b> ${esc(n.when)}` : 'No reminders are on. Turn one on below.'}</div></div>
+    <main class="sheet"><div class="sheet-in">
       ${blocked}
       <section class="section"><h3>How Amma talks</h3>${talkForm(false)}</section>
       <section class="section"><h3>Reminders</h3>${remindersForm()}</section>
@@ -270,6 +277,8 @@ function home() {
       <section class="section"><h3>This phone</h3>
         <div class="stack">
           <button type="button" class="btn btn-primary btn-block" data-act="test" ${ui.busy ? 'disabled' : ''}>Send a test message</button>
+          <button type="button" class="btn btn-ghost btn-block" data-act="status" ${ui.busy ? 'disabled' : ''}>Check my reminders</button>
+          ${statusPanel()}
           ${installButton()}
           <button type="button" class="btn btn-danger btn-block" data-act="off">Turn off Amma on this phone</button>
         </div>
@@ -341,6 +350,65 @@ async function syncOnOpen() {
     if (e.status === 401) return lostServerRecord();
   }
   if (ui.view === 'home') render();
+}
+
+// ---------- "Check my reminders": what the server actually has for this phone ----------
+const KIND_NAME = { meal: 'Meal', water: 'Water', break: 'Break', call: 'Call home', bedtime: 'Bedtime', morning: 'Good morning' };
+
+function statusPanel() {
+  const st = ui.status;
+  if (!st) return '';
+  const missing = buildSlots(state.settings).filter((w) => !st.slots.some((s) => s.kind === w.kind && s.time === w.time)).length;
+  let cls = 'ok';
+  let verdict = "Amma's scheduler is running and your times are saved on the server.";
+  if (!st.slots.length) {
+    cls = 'bad';
+    verdict = 'The server has no reminders for this phone.';
+  } else if (st.overdue > 0) {
+    cls = 'bad';
+    verdict = `${st.overdue} reminder${st.overdue > 1 ? 's were' : ' was'} due but never processed. The every-minute scheduler is not running.`;
+  } else if (missing) {
+    cls = 'bad';
+    verdict = 'The server has different times from this phone.';
+  }
+  const fmt = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const rows = st.slots
+    .slice(0, 6)
+    .map((s) => `<li><b>${esc(KIND_NAME[s.kind] || s.kind)}</b> ${esc(fmt(s.due))}${s.once ? ' (snoozed)' : ''}</li>`)
+    .join('');
+  const serverTime = new Date(st.now).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return `<div class="card status ${cls}" role="status">
+    <p class="verdict">${cls === 'ok' ? '✅' : '⚠️'} ${esc(verdict)}</p>
+    ${rows ? `<ul>${rows}</ul>` : ''}
+    <p class="fine-dark">Server clock ${esc(serverTime)} · sent today ${Number(st.sentToday)} · failed sends in a row ${Number(st.fails)}</p>
+    ${cls === 'bad' && st.overdue === 0 ? `<button type="button" class="btn btn-primary btn-block" data-act="resync">Sync my times now</button>` : ''}
+  </div>`;
+}
+
+async function checkStatus() {
+  if (ui.busy) return;
+  ui.busy = true;
+  render();
+  try {
+    ui.status = await api('/api/status', { id: state.id, token: state.token });
+  } catch (e) {
+    if (e.status === 401) return lostServerRecord();
+    toast(e.message);
+  } finally {
+    ui.busy = false;
+    render();
+  }
+}
+
+async function resync() {
+  try {
+    await api('/api/update', { id: state.id, token: state.token, settings: state.settings, tz: deviceTz() });
+    toast('Times synced.');
+  } catch (e) {
+    if (e.status === 401) return lostServerRecord();
+    toast(e.message);
+  }
+  return checkStatus();
 }
 
 // ---------- Actions ----------
@@ -455,6 +523,8 @@ app.addEventListener('click', (e) => {
       return render();
     case 'enable': return enable();
     case 'test': return sendTest();
+    case 'status': return checkStatus();
+    case 'resync': return resync();
     case 'off': return turnOff();
     case 'install':
       if (ui.installEvent) {
@@ -495,8 +565,3 @@ document.addEventListener('visibilitychange', () => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 render();
 syncOnOpen();
-
-// --- Amma AI Voice Option 2 ---
-
-// Add button automatically if not exists
-

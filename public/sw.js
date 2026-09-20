@@ -1,5 +1,5 @@
-const CACHE = 'ammmaa-v1';
-const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const CACHE = 'ammmaa-v3';
+const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/amma.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
