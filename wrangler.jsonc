@@ -13,6 +13,6 @@
   "vars": {
     "VAPID_PUBLIC_KEY": "BLqhl7Ffr-lNNq9P9YgHD0qgSbrhn-ZidfmaGOxH-9z6ccKdYxlZzu9ZK1Lf8imAB30mPhWJDHf47ldKUr59ZoU",
     "VAPID_SUBJECT": "mailto:you@example.com",
-    "AI_VARIATIONS": "off"
+    "AI_VARIATIONS": "on"
   }
 }

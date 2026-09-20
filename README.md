@@ -50,7 +50,7 @@ The service worker cache name (`CACHE` in `public/sw.js`) must be bumped wheneve
 |---|---|---|
 | `VAPID_PUBLIC_KEY` | var | Public Web Push key, served to the app |
 | `VAPID_SUBJECT` | var | `mailto:` contact for push services |
-| `AI_VARIATIONS` | var | `"on"` lets Workers AI add daily message variations |
+| `AI_VARIATIONS` | var | `"on"` lets Workers AI write fresh reminder lines: every night at 21:00 UTC (02:30 IST) it writes lines for one language (they rotate), and about a third of reminder notifications then use one. The in-app preview and the voice clips only use the hand-written lines. Check what it wrote with `SELECT lang, tone, kind, text FROM ai_lines` in the D1 console |
 | `AI_MODEL` | var (optional) | Override the default model in `src/ai.js` |
 | `CHAT_PROVIDER` | var (optional) | `workers-ai` (default), `groq` or `sarvam`. Workers AI is always the backup |
 | `CHAT_DAILY` | var (optional) | Chat messages allowed per phone per day (default 12) |

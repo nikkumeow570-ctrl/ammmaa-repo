@@ -21,13 +21,23 @@ const LANG_HINT = {
   en: 'simple Indian English, with the occasional Tamil pet name like kanna or chellam',
 };
 
+// How Amma texts. These are only style examples for the model (no time of day in them, and no da/di, which are gendered).
+const STYLE = {
+  ta: ['சாப்பிட்டியா கண்ணா? வயிறு காலியா இருக்கா?', 'தண்ணி குடிச்சியா செல்லம்?', 'தூங்கு கண்ணா, நேரம் ஆச்சு!'],
+  tanglish: ['Saaptiya kanna? Vayiru kaaliya irukka?', 'Thanni kudichiya chellam?', 'Thoongu kanna, neram aachu!'],
+  en: ['Have you eaten, kanna? Is your stomach empty?', 'Did you drink some water, chellam?', 'Go to sleep, kanna. It is late!'],
+};
+
+const MAX_WORDS = 9; // asked for 8, a little slack for how Tamil words split
+
 const TAMIL = /[\u0B80-\u0BFF]/;
 
 function isValid(lang, line) {
   if (typeof line !== 'string') return false;
   const t = line.trim();
   if (t.length < 8 || t.length > 110) return false;
-  if (/https?:|@|#/.test(t)) return false;
+  if (t.split(/\s+/).length > MAX_WORDS) return false;
+  if (/https?:|www\.|@|#/.test(t)) return false;
   const hasTamil = TAMIL.test(t);
   return lang === 'ta' ? hasTamil : !hasTamil;
 }
@@ -65,14 +75,17 @@ export async function generateAiLines(env, now = Date.now()) {
         {
           role: 'system',
           content:
-            'You write short reminder messages in the voice of a Tamil mother texting her grown-up child. ' +
+            'You write short reminder messages as Amma: a Tamil mother in her early fifties texting her grown-up child who lives away from home. ' +
+            'Not formal, warm, homely, a little dramatic, like a real mother at home. ' +
             'Reply with ONLY a JSON array of 5 strings. No explanation, no emojis, no hashtags.',
         },
         {
           role: 'user',
           content:
             `Language: ${LANG_HINT[lang]}.\nTone: ${TONE_HINT[tone.id]}.\nPurpose: ${KIND_HINT[kind]}.\n` +
-            `Each message must be under 90 characters and different from these examples: ${examples}.`,
+            `How Amma texts (keep this style, do not copy):\n${STYLE[lang].map((l) => `- ${l}`).join('\n')}\n` +
+            'Address them as "kanna" or "chellam". Never use "da" or "di": they show the wrong gender. Never mention a clock time.\n' +
+            `Each message: at most 8 words, under 90 characters, and different from these ready-made lines: ${examples}.`,
         },
       ];
       let lines = [];
