@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import worker from '../src/index.js';
+import { MESSAGES } from '../public/shared.js';
 import { chatTurn, isDistress, cleanReply, systemPrompt, DISTRESS_REPLY } from '../src/chat.js';
 import { bytesToB64u } from '../src/push.js';
 
@@ -134,4 +135,19 @@ test('api: /api/chat needs a valid login, rejects empty text and uses the stored
   const j = await res.json();
   assert.ok(j.reply && typeof j.left === 'number');
   assert.equal(calls[0].input.messages[0].content, systemPrompt('tanglish', 'funny'));
+});
+
+test('chat: Amma is written as a mother in her fifties, in the chosen voice, with her own lines as examples', () => {
+  for (const lang of ['ta', 'tanglish', 'en']) {
+    for (const tone of ['loving', 'strict', 'funny']) {
+      const p = systemPrompt(lang, tone);
+      assert.match(p, /early fifties/);
+      assert.match(p, /AI character/);
+      assert.match(p, /never assume their gender/);
+      for (const kind of ['meal', 'water', 'bedtime', 'call']) assert.ok(p.includes(MESSAGES[lang][tone][kind][0]), `${lang}/${tone}/${kind} example`);
+      const other = lang === 'en' ? 'ta' : 'en';
+      assert.ok(!p.includes(MESSAGES[other][tone].meal[0]), 'examples come only from the chosen language');
+    }
+  }
+  assert.match(systemPrompt('en', 'loving'), /helpline/);
 });
