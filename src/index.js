@@ -4,6 +4,7 @@ import { isAllowedEndpoint, sendPush } from './push.js';
 import { randomId, sha256hex, safeEqual, snoozeSig } from './auth.js';
 import { runDue } from './cron.js';
 import { generateAiLines } from './ai.js';
+import { chatTurn } from './chat.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -170,6 +171,14 @@ async function status(request, env) {
   });
 }
 
+async function chat(request, env) {
+  const body = await readJson(request);
+  const row = await authed(env, body);
+  const out = await chatTurn(env, row, body);
+  if (out.error) throw new HttpError(out.status || 400, out.error);
+  return json(out);
+}
+
 async function route(request, env) {
   const { pathname } = new URL(request.url);
   const post = request.method === 'POST';
@@ -183,6 +192,7 @@ async function route(request, env) {
   if (post && pathname === '/api/test') return test(request, env);
   if (post && pathname === '/api/snooze') return snooze(request, env);
   if (post && pathname === '/api/status') return status(request, env);
+  if (post && pathname === '/api/chat') return chat(request, env);
   throw new HttpError(404, 'Not found');
 }
 

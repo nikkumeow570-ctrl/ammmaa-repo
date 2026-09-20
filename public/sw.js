@@ -1,5 +1,6 @@
-const CACHE = 'ammmaa-v3';
-const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/amma.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const CACHE = 'ammmaa-v4';
+const LOCAL = 'ammmaa-local'; // the person's own photo (never deleted when the app updates)
+const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/amma.js', '/voice.js', '/own.js', '/chat.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -9,7 +10,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('ammmaa-v') && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -22,6 +23,11 @@ self.addEventListener('fetch', (event) => {
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (url.origin !== self.location.origin && !isFont) return;
   if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname === '/local/amma.jpg') {
+    event.respondWith(caches.open(LOCAL).then((c) => c.match('/local/amma.jpg')).then((r) => r || new Response('', { status: 404 })));
+    return;
+  }
+  if (url.pathname.startsWith('/voice/')) return; // audio is streamed by the browser itself
 
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
@@ -55,16 +61,23 @@ self.addEventListener('push', (event) => {
       ]
     : [];
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Ammmaa', {
-      body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/badge-96.png',
-      tag: data.kind || 'ammmaa',
-      renotify: true,
-      lang: 'ta',
-      actions,
-      data: { id: data.id, kind: data.kind, sig: data.sig },
-    }),
+    // If the person added their own Amma's photo, it becomes the notification picture.
+    caches
+      .open(LOCAL)
+      .then((c) => c.match('/local/amma.jpg'))
+      .catch(() => null)
+      .then((photo) =>
+        self.registration.showNotification(data.title || 'Ammmaa', {
+          body: data.body || '',
+          icon: photo ? '/local/amma.jpg' : '/icons/icon-192.png',
+          badge: '/icons/badge-96.png',
+          tag: data.kind || 'ammmaa',
+          renotify: true,
+          lang: 'ta',
+          actions,
+          data: { id: data.id, kind: data.kind, sig: data.sig, text: data.body || '' },
+        }),
+      ),
   );
 });
 
@@ -82,10 +95,19 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
   if (event.action === 'done') return;
+  // Opening the app from a reminder lets Amma say that reminder out loud (a tap is needed before browsers allow sound).
+  const kind = (n.data && n.data.kind) || '';
+  const text = (n.data && n.data.text) || '';
+  const url = kind ? `/?hear=${encodeURIComponent(kind)}&t=${encodeURIComponent(text)}` : '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) if ('focus' in c) return c.focus();
-      return self.clients.openWindow('/');
+      for (const c of list) {
+        if ('focus' in c) {
+          c.postMessage({ type: 'hear', kind, text });
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(url);
     }),
   );
 });

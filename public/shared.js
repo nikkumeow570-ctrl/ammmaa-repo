@@ -197,3 +197,11 @@ export function pickLine(lang, tone, kind, rand = Math.random) {
   const list = (MESSAGES[lang] && MESSAGES[lang][tone] && MESSAGES[lang][tone][kind]) || MESSAGES.en.loving.meal;
   return list[Math.floor(rand() * list.length)];
 }
+
+// Stable file name for a line's voice clip: the app and scripts/make-voice.mjs must agree, so it lives here.
+// FNV-1a over the code points of "lang|text", plus the length, as hex. Changing a line's wording changes its key.
+export function voiceKey(lang, text) {
+  let h = 0x811c9dc5;
+  for (const ch of `${lang}|${text}`) h = Math.imul(h ^ ch.codePointAt(0), 0x01000193) >>> 0;
+  return h.toString(16).padStart(8, '0') + text.length.toString(36);
+}

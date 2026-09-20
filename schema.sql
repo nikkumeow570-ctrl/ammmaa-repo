@@ -36,3 +36,11 @@ CREATE TABLE IF NOT EXISTS ai_lines (
   created_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ai_lines ON ai_lines(lang, tone, kind);
+
+-- Chat with Amma: how many messages each phone sent today (the Worker also creates this table on first use)
+CREATE TABLE IF NOT EXISTS chat_usage (
+  sub_id  TEXT NOT NULL,
+  day     TEXT NOT NULL,
+  n       INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (sub_id, day)
+);

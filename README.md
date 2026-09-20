@@ -11,9 +11,11 @@ A PWA on Cloudflare: static assets + one Worker + D1, with Web Push notification
 
 ## Layout
 ```
-public/    PWA: index.html, app.js, sw.js, shared.js (message bank + settings), icons
+public/    PWA: index.html, app.js (screens), style.css, sw.js, shared.js (message bank + settings),
+           amma.js (the cartoon Amma, 4 moods, inline SVG), chat.js, voice.js, own.js, privacy.html, voice/ (clips), icons/
 src/       Worker: index.js (API), cron.js (sender), push.js (Web Push), ai.js, time.js, auth.js
 test/      node:test suites (no network needed)
+scripts/   gen-vapid.mjs (push keys), make-icons.py (renders the app icons from amma.js), make-voice.mjs (voice clips)
 schema.sql D1 schema        wrangler.jsonc  Worker config
 ```
 
@@ -38,6 +40,11 @@ npm run deploy
 ```
 Wrangler does not install natively in Termux (native dependencies), so use the first route there.
 
+## Look and feel
+Amma is drawn in `public/amma.js` and changes mood with the tone the person picks (loving, strict, funny) and falls asleep on bedtime lines.
+After editing her, regenerate the icons: `pip install playwright && playwright install chromium && python3 scripts/make-icons.py`.
+The service worker cache name (`CACHE` in `public/sw.js`) must be bumped whenever the UI files change, or installed apps keep the old look.
+
 ## Configuration
 | Name | Kind | Purpose |
 |---|---|---|
@@ -45,8 +52,25 @@ Wrangler does not install natively in Termux (native dependencies), so use the f
 | `VAPID_SUBJECT` | var | `mailto:` contact for push services |
 | `AI_VARIATIONS` | var | `"on"` lets Workers AI add daily message variations |
 | `AI_MODEL` | var (optional) | Override the default model in `src/ai.js` |
+| `CHAT_PROVIDER` | var (optional) | `workers-ai` (default), `groq` or `sarvam`. Workers AI is always the backup |
+| `CHAT_DAILY` | var (optional) | Chat messages allowed per phone per day (default 12) |
+| `GROQ_API_KEY` / `GROQ_MODEL` | secret / var | Only for `groq` (default model `llama-3.3-70b-versatile`) |
+| `SARVAM_API_KEY` / `SARVAM_MODEL` | secret / var | Only for `sarvam` (default model `sarvam-30b`; the request format has not been tested against the live service) |
 | `VAPID_PRIVATE_KEY` | secret | Signs push requests |
 | `APP_SECRET` | secret | Signs the snooze buttons in notifications |
+
+## Chat, voice and "Your own Amma"
+- **Chat** (`src/chat.js`, `public/chat.js`): a short chat with Amma. The reply comes from the provider above. Serious messages (English, Tanglish, Tamil) get a fixed caring reply that mentions India's Tele-MANAS helpline (14416) and never reach the AI. After the daily limit, or if the AI fails, Amma answers from her ready-made lines. Set a provider's key with `wrangler secret put` or the dashboard, never in the repo.
+- **Voice clips** (`scripts/make-voice.mjs`): makes an MP3 for every ready-made line and writes `public/voice/manifest.json`. Needs the `edge-tts` command (`pip install edge-tts`).
+  ```
+  node scripts/make-voice.mjs --dry        # plan and character count, makes nothing
+  node scripts/make-voice.mjs              # safe to re-run: finished clips are skipped
+  TANGLISH_FROM=ta node scripts/make-voice.mjs --lang=tanglish   # optional: Tamil voice for the Tanglish lines
+  ```
+  Commit `public/voice/`. Without clips, the speaker button falls back to the phone's own voice, and is hidden if the phone has none.
+  `edge-tts` is an unofficial client of Microsoft's Edge read-aloud service. Treat the clips as a prototype and replace them with a licensed voice before a public launch.
+- **Your own Amma** (`public/own.js`, `public/voice.js`): a photo and short voice recordings that stay on the phone (browser storage), never uploaded. Her recording plays first, then the pre-made clip, then the phone's voice.
+- **Privacy** (`public/privacy.html`): add a contact email before sharing the app publicly.
 
 ## Tests
 `npm test` (Node 22+). CI runs it on every push. The suite does not depend on the time of day.

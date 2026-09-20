@@ -1,5 +1,8 @@
 import { LANGS, TONES, DEFAULTS, normalizeSettings, buildSlots, pickLine } from './shared.js';
 import { ammaSvg } from './amma.js';
+import * as V from './voice.js';
+import { openChat } from './chat.js';
+import { openRecorder, pickPhoto } from './own.js';
 
 const KEY = 'ammmaa.v1';
 const app = document.getElementById('app');
@@ -40,6 +43,8 @@ const ui = {
   installEvent: null,
   focusSel: '',
   status: null,
+  voice: null,
+  hear: null,
 };
 
 const PREVIEW_KINDS = ['meal', 'water', 'break', 'morning', 'bedtime'];
@@ -222,7 +227,7 @@ function welcome() {
     </div>
     <div class="welcome-foot">
       <button type="button" class="btn btn-gold btn-block" data-act="start">Set up Amma</button>
-      <p class="fine">No sign-up. We keep only your reminder times and a push address.</p>
+      <p class="fine">No sign-up. We keep only your reminder times and a push address. <a class="fine-link" href="/privacy.html">Privacy</a></p>
     </div>
   </main>`;
 }
@@ -262,11 +267,14 @@ function home() {
       : ui.needsResub
         ? `<div class="note" role="alert">Amma lost her way to this phone. <button type="button" class="link" data-act="enable">Turn notifications back on</button></div>`
         : '';
+  const banner = ui.hear && V.canHear({ kind: ui.hear.kind, text: ui.hear.text, lang: s.lang }) ? '<button type="button" class="hear-banner" data-act="hear-banner">▶ Amma sent you a message. Tap to hear her</button>' : '';
   return `<div class="home">
     <header class="hero">
       <div class="brand">Ammmaa<small lang="ta">அம்மா</small></div>
+      ${banner}
       <button type="button" class="say-big" data-act="another" lang="${langAttr(s.lang)}" aria-label="Amma says: ${esc(ui.line)}. Tap for another.">${esc(ui.line)}</button>
-      <div class="hero-art">${ammaSvg(mood(), { label: 'Amma' })}</div>
+      <div class="hero-actions">${V.canHear({ kind: ui.kind, text: ui.line, lang: s.lang }) ? '<button type="button" class="chip" data-act="hear">🔊 Hear Amma</button>' : ''}<button type="button" class="chip chip-gold" data-act="chat">💬 Talk to Amma</button></div>
+      <div class="hero-art">${V.own.photoUrl ? `<img class="own-photo" src="${V.own.photoUrl}" alt="Your Amma">` : ammaSvg(mood(), { label: 'Amma' })}</div>
     </header>
     <div class="next-card"><span class="ico" aria-hidden="true">⏰</span><div>${n ? `<small>Next reminder</small><b>${esc(n.label)}</b> ${esc(n.when)}` : 'No reminders are on. Turn one on below.'}</div></div>
     <main class="sheet"><div class="sheet-in">
@@ -274,15 +282,19 @@ function home() {
       <section class="section"><h3>How Amma talks</h3>${talkForm(false)}</section>
       <section class="section"><h3>Reminders</h3>${remindersForm()}</section>
       <section class="section"><h3>Quiet hours</h3><p>Amma stays quiet in this window, except for bedtime and good morning.</p>${quietForm()}</section>
+      ${ownSection()}
       <section class="section"><h3>This phone</h3>
         <div class="stack">
           <button type="button" class="btn btn-primary btn-block" data-act="test" ${ui.busy ? 'disabled' : ''}>Send a test message</button>
           <button type="button" class="btn btn-ghost btn-block" data-act="status" ${ui.busy ? 'disabled' : ''}>Check my reminders</button>
           ${statusPanel()}
+          <button type="button" class="btn btn-ghost btn-block" data-act="voice-check">Voice check</button>
+          ${voicePanel()}
           ${installButton()}
           <button type="button" class="btn btn-danger btn-block" data-act="off">Turn off Amma on this phone</button>
         </div>
       </section>
+      <p class="privacy-link"><a href="/privacy.html">Privacy: what Amma keeps and where it goes</a></p>
     </div></main>
   </div>`;
 }
@@ -411,6 +423,51 @@ async function resync() {
   return checkStatus();
 }
 
+// ---------- Your own Amma (photo + recordings, all on this phone) and voice ----------
+const OWN_KINDS = [
+  ['morning', '☀️', 'Good morning'],
+  ['meal', '🍛', 'Meals'],
+  ['water', '💧', 'Water'],
+  ['break', '🧘', 'Breaks'],
+  ['call', '📞', 'Call home'],
+  ['bedtime', '🌙', 'Bedtime'],
+];
+
+function ownSection() {
+  const photo = V.own.photoUrl;
+  const rows = OWN_KINDS.map(([k, icon, label]) => {
+    const has = V.own.clips.has(k);
+    return `<div class="rcard own-row${has ? ' on' : ''}"><div class="row"><span class="badge" aria-hidden="true">${icon}</span><div class="row-main"><span class="row-title">${label}</span><span class="row-hint">${has ? "Amma's voice is saved" : 'Not recorded yet'}</span></div>${
+      has ? `<button type="button" class="icon-btn" data-act="rec-play" data-kind="${k}" aria-label="Play the ${label} recording">▶</button><button type="button" class="icon-btn" data-act="rec-del" data-kind="${k}" aria-label="Delete the ${label} recording">🗑</button>` : ''
+    }<button type="button" class="btn btn-ghost btn-sm" data-act="rec" data-kind="${k}" data-label="${label}">${has ? 'Redo' : 'Record'}</button></div></div>`;
+  }).join('');
+  return `<section class="section"><h3>Your own Amma</h3>
+    <p>Add her photo and her real voice. Everything stays on this phone and is never uploaded.</p>
+    <div class="card photo-card"><div class="photo-preview">${photo ? `<img src="${photo}" alt="Your Amma">` : ammaSvg('loving', { decorative: true })}</div>
+      <div class="photo-actions"><button type="button" class="btn btn-ghost" data-act="photo">${photo ? 'Change photo' : 'Add her photo'}</button>${photo ? '<button type="button" class="link" data-act="photo-del">Remove</button>' : ''}</div></div>
+    ${V.canRecord() ? `<div class="rows">${rows}</div>` : `<div class="note">This browser can't record audio, so only the photo is available.</div>`}
+  </section>`;
+}
+
+function voicePanel() {
+  const v = ui.voice;
+  if (!v) return '';
+  const li = (ok, yes, no) => `<li>${ok ? '✅' : '⚠️'} ${esc(ok ? yes : no)}</li>`;
+  const good = v.clips > 0 || v.tamilVoice;
+  return `<div class="card status ${good ? 'ok' : 'bad'}" role="status"><p class="verdict">Voice check</p><ul>
+    ${li(v.clips > 0, `${v.clips} pre-made Amma clips are installed.`, 'No pre-made Amma clips are installed yet.')}
+    ${li(!!v.tamilVoice, `Tamil voice on this phone: ${v.tamilVoice}.`, "No Tamil voice on this phone. Install Tamil voice data in your phone's text-to-speech settings.")}
+    ${li(!!v.englishVoice, `English voice on this phone: ${v.englishVoice}.`, 'No English voice found on this phone.')}
+    ${li(v.canRecord, 'Recording your own Amma works here.', "This browser can't record audio.")}
+    ${li(v.canListen, 'Speaking to Amma with the microphone button is available.', 'Speaking to Amma is not available in this browser. Typing works.')}
+  </ul><p class="fine-dark">Microphone permission: ${esc(v.mic)}. Your own recordings: ${Number(v.ownClips)}.</p></div>`;
+}
+
+async function doHear({ kind, text }) {
+  const how = await V.hear({ kind, text, lang: state.settings.lang });
+  if (how === 'none') toast("Amma can't speak on this phone yet. Try the Voice check below.");
+}
+
 // ---------- Actions ----------
 async function enable() {
   if (ui.busy) return;
@@ -525,6 +582,23 @@ app.addEventListener('click', (e) => {
     case 'test': return sendTest();
     case 'status': return checkStatus();
     case 'resync': return resync();
+    case 'hear': return doHear({ kind: ui.kind, text: ui.line });
+    case 'hear-banner': {
+      const h = ui.hear;
+      ui.hear = null;
+      render();
+      return doHear(h);
+    }
+    case 'chat':
+      return openChat({ lang: () => state.settings.lang, tone: () => state.settings.tone, id: () => state.id, token: () => state.token, api, onLost: lostServerRecord });
+    case 'photo': return pickPhoto(() => toast('Photo saved on this phone.'), () => toast("Couldn't use that photo. Try another one."));
+    case 'photo-del': return V.removePhoto().then(render);
+    case 'rec': return openRecorder({ kind: el.dataset.kind, label: el.dataset.label, onSaved: () => toast("Saved on this phone. Tap Hear Amma to try it.") });
+    case 'rec-play': return V.getClip(el.dataset.kind).then((c) => c && c.blob && V.play(c.blob)).catch(() => toast("Couldn't play that recording."));
+    case 'rec-del':
+      if (confirm('Delete this recording from this phone?')) V.removeClip(el.dataset.kind).then(render);
+      return;
+    case 'voice-check': return V.voiceCheck().then((v) => { ui.voice = v; render(); });
     case 'off': return turnOff();
     case 'install':
       if (ui.installEvent) {
@@ -562,6 +636,23 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') syncOnOpen();
 });
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+// A tap on a reminder notification opens the app with ?hear=<kind>&t=<the line>, so Amma can say it out loud.
+const launch = new URLSearchParams(location.search);
+if (launch.has('hear')) {
+  ui.hear = { kind: launch.get('hear'), text: launch.get('t') || '' };
+  history.replaceState(null, '', '/');
+}
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'hear') {
+      ui.hear = { kind: e.data.kind, text: e.data.text || '' };
+      render();
+    }
+  });
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+V.loadManifest().then(render);
+V.loadOwn().then(render);
+if ('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged', render);
 render();
 syncOnOpen();
