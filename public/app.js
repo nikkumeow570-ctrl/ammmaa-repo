@@ -57,12 +57,16 @@ const ui = {
   hear: null,
 };
 
-const PREVIEW_KINDS = ['meal', 'water', 'break', 'morning', 'bedtime'];
+const PREVIEW_KINDS = ['meal', 'water', 'break', 'morning', 'bedtime', 'call'];
 // Amma's face follows the mood the person picked; bedtime lines make her sleepy.
 const mood = () => (ui.kind === 'bedtime' ? 'sleepy' : state.settings.tone);
+// Once her own voice is recorded, Home only shows lines about topics she has recorded, so "Hear Amma" plays HER voice.
+const ownKinds = () => PREVIEW_KINDS.filter((k) => V.own.clips.has(k));
+const anyOf = (list) => list[Math.floor(Math.random() * list.length)];
+
 function newLine(vary) {
   const s = state.settings;
-  if (vary) ui.kind = PREVIEW_KINDS[Math.floor(Math.random() * PREVIEW_KINDS.length)];
+  if (vary) ui.kind = anyOf(ownKinds().length ? ownKinds() : PREVIEW_KINDS);
   let line = '';
   for (let i = 0; i < 8; i++) {
     line = pickLine(s.lang, s.tone, ui.kind);
@@ -291,6 +295,11 @@ function blockedNote() {
 
 function homeTab() {
   const s = state.settings;
+  const mine = ownKinds();
+  if (mine.length && !mine.includes(ui.kind)) {
+    ui.kind = anyOf(mine);
+    newLine(false);
+  }
   const n = nextUp();
   const hearable = V.canHear({ kind: ui.kind, text: ui.line, lang: s.lang });
   const banner = ui.hear && V.canHear({ kind: ui.hear.kind, text: ui.hear.text, lang: s.lang }) ? '<button type="button" class="hear-banner" data-act="hear-banner">🔊 Amma sent you a message. Tap to hear her</button>' : '';
@@ -305,7 +314,7 @@ function homeTab() {
       <div class="bento">
         <div class="tile tile-wide tile-next"><span class="tile-ico" aria-hidden="true">${icon('clock')}</span><div><small>Next reminder</small>${n ? `<b>${esc(n.label)}</b> <span>${esc(n.when)}</span>` : '<b>Nothing scheduled</b> <span>Turn one on in Reminders</span>'}</div></div>
         <button type="button" class="tile tile-chat${hearable ? '' : ' tile-wide'}" data-act="chat"><span class="tile-ico" aria-hidden="true">${icon('chat')}</span><b>Talk to Amma</b><small>Ask her anything</small></button>
-        ${hearable ? `<button type="button" class="tile tile-hear" data-act="hear"><span class="tile-ico" aria-hidden="true">${icon('speaker')}</span><b>Hear Amma</b><small>She says it aloud</small></button>` : ''}
+        ${hearable ? `<button type="button" class="tile tile-hear" data-act="hear"><span class="tile-ico" aria-hidden="true">${icon('speaker')}</span><b>Hear Amma</b><small>${V.own.clips.has(ui.kind) ? 'Her own voice' : 'She says it aloud'}</small></button>` : ''}
         <div class="tile tile-wide tile-mood">${seg("Amma's mood", 'h-tone', 'tone', TONES, s.tone)}</div>
       </div>
     </div>`;
@@ -562,13 +571,25 @@ function voicePanel() {
     ${li(!!v.tamilVoice, `Tamil voice on this phone: ${v.tamilVoice}.`, "No Tamil voice on this phone. Install Tamil voice data in your phone's text-to-speech settings.")}
     ${li(!!v.englishVoice, `English voice on this phone: ${v.englishVoice}.`, 'No English voice found on this phone.')}
     ${li(v.canRecord, 'Recording your own Amma works here.', "This browser can't record audio.")}
+    ${li(v.ownKinds.length > 0, `Your recordings: ${OWN_KINDS.filter(([k]) => v.ownKinds.includes(k)).map(([, , l]) => l).join(', ')}. Home and Chat play them when a line is about the same thing.`, 'No recordings yet. Add some under Your own Amma.')}
     ${li(v.canListen, 'Speaking to Amma with the microphone button is available.', 'Speaking to Amma is not available in this browser. Typing works.')}
   </ul><p class="fine-dark">Microphone permission: ${esc(v.mic)}. Your own recordings: ${Number(v.ownClips)}.</p></div>`;
 }
 
+let voiceHinted = false; // explain a fallback voice once per visit, not on every tap
+
 async function doHear({ kind, text }) {
   const how = await V.hear({ kind, text, lang: state.settings.lang });
-  if (how === 'none') toast("Amma can't speak on this phone yet. Try the Voice check below.");
+  if (how === 'none') return toast("Amma can't speak on this phone yet. Open More, then Voice check.");
+  if (how === 'browser' && !voiceHinted) {
+    if (V.own.clips.size) {
+      voiceHinted = true;
+      toast("No recording for this line, so your phone's voice is speaking. Record more in More.");
+    } else if (V.clipCount() === 0) {
+      voiceHinted = true;
+      toast("Using your phone's voice. Amma's voice clips are not on the site yet.");
+    }
+  }
 }
 
 // ---------- Actions ----------

@@ -2,8 +2,8 @@
 // the conversation and the microphone state survive re-renders.
 import { icon } from './icons.js';
 import { ammaSvg } from './amma.js';
-import { pickLine } from './shared.js';
-import { canHear, hear, canListen, listen, stopAudio } from './voice.js';
+import { pickLine, topicKind } from './shared.js';
+import { canHear, hear, canListen, listen, stopAudio, own, getClip, play } from './voice.js';
 
 const STORE = 'ammmaa.chat.v1';
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -43,6 +43,7 @@ export function createChat(ctx) {
     <header class="chat-head">
       <div class="avatar">${ammaSvg(mood(), { decorative: true })}</div>
       <div class="chat-title"><b>Amma</b><small>An AI character, not a real person</small></div>
+      <button type="button" class="chip voice-chip" data-c="myvoice" hidden>${icon('heart')}<span>Her voice</span></button>
     </header>
     <p class="chat-disclose">Your messages are sent to an AI service so it can write Amma's reply. Please don't share private details. <button type="button" class="link" data-c="clear">Clear chat</button></p>
     <div class="chat-log" role="log" aria-live="polite"></div>
@@ -60,7 +61,20 @@ export function createChat(ctx) {
 
   function bubble(m, i) {
     const say = m.role === 'assistant' && canHear({ text: m.text, lang: ctx.lang() }) ? `<button type="button" class="say" data-c="say" data-i="${i}" aria-label="Hear this">&#128266;</button>` : '';
-    return `<div class="msg ${m.role === 'user' ? 'user' : 'amma'}${m.safety ? ' safety' : ''}"><p lang="${langAttr(ctx.lang())}">${esc(m.text)}</p>${say}</div>`;
+    // Her real recording of the same topic (a reply about food offers her "have you eaten?" recording).
+    const kind = m.role === 'assistant' && !m.safety ? topicKind(m.text) : '';
+    const hers = kind && own.clips.has(kind) ? `<button type="button" class="say own-voice" data-c="own" data-k="${kind}" aria-label="Hear her real voice">${icon('heart')}</button>` : '';
+    return `<div class="msg ${m.role === 'user' ? 'user' : 'amma'}${m.safety ? ' safety' : ''}"><p lang="${langAttr(ctx.lang())}">${esc(m.text)}</p>${say}${hers}</div>`;
+  }
+
+  async function playOwn(kind) {
+    try {
+      const c = await getClip(kind);
+      if (c && c.blob) await play(c.blob);
+      else setNote("Couldn't find that recording.");
+    } catch {
+      setNote("Couldn't play that recording.");
+    }
   }
 
   function draw() {
@@ -124,6 +138,11 @@ export function createChat(ctx) {
         const m = msgs[Number(b.dataset.i)];
         return m && hear({ text: m.text, lang: ctx.lang() });
       }
+      case 'own': return playOwn(b.dataset.k);
+      case 'myvoice': {
+        const kinds = [...own.clips];
+        return kinds.length && playOwn(kinds[Math.floor(Math.random() * kinds.length)]);
+      }
       case 'mic':
         if (listening) {
           listening.stop();
@@ -153,6 +172,7 @@ export function createChat(ctx) {
   // Language or mood may have changed on the More tab since the panel was last shown.
   const refresh = () => {
     head.querySelector('.avatar').innerHTML = ammaSvg(mood(), { decorative: true });
+    head.querySelector('.voice-chip').hidden = !own.clips.size; // only when she has recorded something
     draw();
   };
   return {

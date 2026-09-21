@@ -205,3 +205,20 @@ export function voiceKey(lang, text) {
   for (const ch of `${lang}|${text}`) h = Math.imul(h ^ ch.codePointAt(0), 0x01000193) >>> 0;
   return h.toString(16).padStart(8, '0') + text.length.toString(36);
 }
+
+// Which everyday topic a line is about (a meal, water, sleep...), so her own recording of that topic can be offered next to it.
+// Returns '' when nothing matches. Tamil words are matched outside \b because \b does not understand Tamil letters.
+const TOPICS = [
+  ['meal', /\b(eat|eaten|ate|food|meal|lunch|dinner|breakfast|hungry|saap\w*|sapad\w*|vayiru|idli|dosa)\b|சாப்|பசி|வயிறு/i],
+  ['water', /\b(water|drink|drank|thirst\w*|thanni|thaneer|kudi\w*)\b|தண்ணீ|தண்ணி|குடி/i],
+  ['bedtime', /\b(sleep|sleepy|bed|bedtime|thoong\w*|thookk\w*)\b|தூங்|தூக்/i],
+  ['break', /\b(break|stretch|walk|rest your eyes|ooivu|nada)\b|ஓய்வு|நட/i],
+  ['morning', /\b(good morning|morning|wake up|ezhund\w*|vanakkam)\b|காலை|எழுந்|வணக்கம்/i],
+  ['call', /\b(call|calling|ring|phone pann\w*)\b|போன் பண்|கூப்பிடு|அழை/i], // "put the phone down" is a bedtime line, not a call line
+];
+
+export function topicKind(text) {
+  const t = String(text || '');
+  for (const [kind, re] of TOPICS) if (re.test(t)) return kind;
+  return '';
+}

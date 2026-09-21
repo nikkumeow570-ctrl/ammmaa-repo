@@ -276,5 +276,6 @@ export async function voiceCheck() {
     mic,
     clips: clipCount(),
     ownClips: own.clips.size,
+    ownKinds: [...own.clips],
   };
 }
