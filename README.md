@@ -1,6 +1,6 @@
-<h1 align="center">Ammmaa <sub>அம்மா</sub></h1>
+<h1 align="center">Anbudan Amma <sub>அன்புடன் அம்மா</sub></h1>
 
-<p align="center"><b>"Have you eaten?" A caring Amma for your phone.</b><br>
+<p align="center"><b>"With love, Amma." A caring Amma for your phone that asks: have you eaten?</b><br>
 Gentle reminders in Tamil, Tanglish or English, from a cartoon mother who worries about you.</p>
 
 <p align="center">
@@ -8,6 +8,7 @@ Gentle reminders in Tamil, Tanglish or English, from a cartoon mother who worrie
   <img alt="runs on Cloudflare" src="https://img.shields.io/badge/runs%20on-Cloudflare%20Workers-F38020">
   <img alt="PWA" src="https://img.shields.io/badge/app-PWA-0C4B47">
   <img alt="no accounts" src="https://img.shields.io/badge/accounts-none-B3145F">
+  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-2FB8A8"></a>
 </p>
 
 <p align="center">
@@ -17,21 +18,36 @@ Gentle reminders in Tamil, Tanglish or English, from a cartoon mother who worrie
   <img src="docs/screenshots/4-reminders.png" width="170" alt="Reminders tab">
   <img src="docs/screenshots/5-more.png" width="170" alt="More tab">
 </p>
-<p align="center"><sub>Screenshots come from a headless test browser with system fonts and a made-up chat line, so on a real phone the text looks a little different.</sub></p>
+<p align="center">
+  <img src="docs/screenshots/1-welcome-dark.png" width="170" alt="Welcome screen, dark theme">
+  <img src="docs/screenshots/2-home-dark.png" width="170" alt="Home tab, dark theme">
+  <img src="docs/screenshots/3-chat-dark.png" width="170" alt="Chat tab, dark theme">
+  <img src="docs/screenshots/4-reminders-dark.png" width="170" alt="Reminders tab, dark theme">
+  <img src="docs/screenshots/5-more-dark.png" width="170" alt="More tab, dark theme">
+</p>
+<p align="center"><sub>Light and dark themes. Screenshots come from a headless test browser with system fonts and a made-up chat line, so on a real phone the text looks a little different.</sub></p>
 
 ## Contents
-[What it does](#what-it-does) · [How it works](#how-it-works) · [Get it running](#get-it-running) · [Android app](#android-app) · [Configuration](#configuration) · [Voice and your own Amma](#voice-and-your-own-amma) · [Chat and AI](#chat-and-ai) · [Project layout](#project-layout) · [Development](#development) · [Privacy and safety](#privacy-and-safety) · [Troubleshooting](#troubleshooting) · [Roadmap](#roadmap)
+[What it does](#what-it-does) · [Design](#design) · [How it works](#how-it-works) · [Get it running](#get-it-running) · [Android app](#android-app) · [Configuration](#configuration) · [Voice and your own Amma](#voice-and-your-own-amma) · [Chat and AI](#chat-and-ai) · [Project layout](#project-layout) · [Development](#development) · [Privacy and safety](#privacy-and-safety) · [Licence](#licence) · [Troubleshooting](#troubleshooting) · [Roadmap](#roadmap)
 
 ## What it does
-Ammmaa is a progressive web app (PWA). You install it on your phone, pick a language and a mood, and Amma sends you the small nudges a mother would: eat, drink water, rest your eyes, call home, go to sleep.
+Anbudan Amma (Tamil: அன்புடன் அம்மா, "with love, Amma") is a progressive web app (PWA). It was first called Ammmaa. You install it on your phone, pick a language and a mood, and Amma sends you the small nudges a mother would: eat, drink water, rest your eyes, call home, go to sleep.
 
 - **Reminders:** meals (breakfast, lunch, dinner), water, breaks, a weekly "call home", bedtime and a good-morning hello. Quiet hours, a daily cap and snooze buttons on the notification keep it caring rather than nagging.
 - **Three languages, three moods:** Tamil (தமிழ்), Tanglish (Tamil in English letters) and English; loving, strict or funny. There are 108 hand-written lines (36 per language).
+- **A modern phone interface:** a floating tab bar (Home, Chat, Reminders, More), a card-and-tile Home screen, light and dark themes that follow the phone, and smooth motion that respects "reduce motion".
 - **A cartoon Amma** who changes her face with the mood (loving, strict, funny, and sleepy at bedtime).
 - **Chat with Amma:** a short AI chat in her voice, with a daily limit, a fixed caring reply for serious messages, and a clear "AI character" label.
 - **Hear Amma:** pre-made voice clips, or the phone's own voice; a microphone button for speaking in chat.
 - **Your own Amma:** add her photo and record her real voice. Both stay on the phone and are never uploaded.
 - **No accounts.** The server keeps only your reminder settings and a push address.
+
+## Design
+- **Look.** Soft rounded surfaces, glass panels, a bento-style Home and a floating tab bar. Peacock green, haldi gold and silk rose are the brand colours. Type is Manrope for Latin text and Noto Sans Tamil for Tamil, both loaded from Google Fonts.
+- **Themes.** Colours are CSS variables in `public/style.css`. The dark theme switches on with the phone's setting.
+- **Accessibility.** Text and buttons keep at least 4.5:1 contrast in both themes (a test checks this), tap targets are at least 44 px, reduced-motion is respected, and screen readers get a label on every tab even when only the active label is drawn.
+- **Motion.** Tab changes cross-fade using View Transitions where the browser supports them; other browsers switch instantly.
+- **Icons.** A small hand-drawn line-icon set in `public/icons.js`, so nothing depends on emoji fonts for the interface.
 
 ## How it works
 ```mermaid
@@ -128,7 +144,7 @@ Commit `public/voice/`. Without clips, the speaker button uses the phone's own v
 
 ## Project layout
 ```
-public/       the PWA: index.html, app.js (screens and tabs), style.css, sw.js (service worker),
+public/       the PWA: index.html, app.js (screens and tabs), style.css (design tokens, themes), icons.js, sw.js (service worker),
               shared.js (message bank and settings), amma.js (the cartoon), chat.js, voice.js, own.js,
               privacy.html, voice/ (clips), twa/assetlinks.json (Android link file), icons/
 src/          the Worker: index.js (API), cron.js (sender), push.js (Web Push), chat.js, ai.js, time.js, auth.js
@@ -138,14 +154,16 @@ scripts/      gen-vapid.mjs (push keys), make-voice.mjs (voice clips), make-icon
 docs/         README screenshots
 android/      how to build and publish the Android app (no keys, no build output)
 schema.sql    D1 schema         wrangler.jsonc    Worker config
+LICENSE       MIT               NOTICE.md         what the licence does not cover
 ```
 
 ## Development
 ```
-npm test                        # 49 unit tests, Node 22+, no network
+npm test                        # 53 unit tests, Node 22+, no network
 ```
 - CI runs the same command on every push (`.github/workflows/test.yml`). The suite does not depend on the time of day.
 - **After changing anything in `public/`,** bump the `CACHE` name in `public/sw.js`, or installed apps keep showing the old version.
+- **The old name lives on inside.** Storage keys such as `ammmaa.v1`, the cache names, the Worker name and the database name still say `ammmaa` on purpose: renaming them would sign people out and lose saved photos, recordings and settings.
 - **Icons.** After editing Amma in `public/amma.js`: `pip install playwright && playwright install chromium && python3 scripts/make-icons.py`.
 - **Local preview.** Any static server works for the interface (`python3 -m http.server -d public`); push and chat need the Worker.
 - **Layout.** Keep new screens free of sideways scrolling at phone widths from 320 to 430 px. The current screens were checked at those widths in a headless browser.
@@ -170,7 +188,8 @@ Amma is an AI character. She gives no medical, legal or financial advice, and th
 - [x] Tamil, Tanglish and English; three moods; cartoon Amma
 - [x] Chat with a safety net and daily limit
 - [x] Voice clips, the phone's voice, and your own Amma (photo and recordings)
-- [x] Tabbed mobile layout
+- [x] Tabbed mobile layout, modern 2026 interface with light and dark themes
+- [x] Renamed to Anbudan Amma; MIT licence
 - [ ] "How should Amma call you?" (kanna, da or di)
 - [ ] Birthdays, festivals and your own messages
 - [ ] A licensed voice for the clips; a native-speaker review of every Tamil line
@@ -178,7 +197,7 @@ Amma is an AI character. She gives no medical, legal or financial advice, and th
 - [ ] Play Store listing
 - [ ] Optional native features: home-screen widget, alarm-style reminders
 
-## Credits and licence
-The idea of a caring, Amma-like reminder was inspired by [Maaa](https://www.maaa.app/) on the desktop. Ammmaa is an independent project built for phones and shares no code or artwork with it.
+## Licence
+Released under the [MIT licence](LICENSE), copyright 2026 NBoss. [`NOTICE.md`](NOTICE.md) lists what the licence does not cover: generated voice clips, third-party fonts and AI services, and the name **Anbudan Amma**, which forks should not reuse.
 
-There is no licence file yet, so by default all rights are reserved. Add a `LICENSE` file to choose one.
+The idea of a caring, Amma-like reminder was inspired by [Maaa](https://www.maaa.app/) on the desktop. This project shares no code or artwork with it.

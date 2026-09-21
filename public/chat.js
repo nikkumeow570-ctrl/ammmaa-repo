@@ -1,5 +1,6 @@
 // Chat with Amma. One persistent panel: the app re-attaches it to the Chat tab after every render, so what was typed,
 // the conversation and the microphone state survive re-renders.
+import { icon } from './icons.js';
 import { ammaSvg } from './amma.js';
 import { pickLine } from './shared.js';
 import { canHear, hear, canListen, listen, stopAudio } from './voice.js';
@@ -47,9 +48,9 @@ export function createChat(ctx) {
     <div class="chat-log" role="log" aria-live="polite"></div>
     <p class="chat-note" id="chat-note" role="status"></p>
     <form class="chat-form" autocomplete="off">
-      <button type="button" class="mic" data-c="mic" aria-label="Speak instead of typing" ${canListen() ? '' : 'hidden'}>&#127908;</button>
+      <button type="button" class="mic" data-c="mic" aria-label="Speak instead of typing" ${canListen() ? '' : 'hidden'}>${icon('mic')}</button>
       <input class="chat-input" type="text" maxlength="300" enterkeyhint="send" aria-label="Message to Amma" placeholder="Say something to Amma">
-      <button type="submit" class="chat-send">Send</button>
+      <button type="submit" class="chat-send" aria-label="Send">${icon('send')}</button>
     </form>`;
   const log = sheet.body.querySelector('.chat-log');
   const input = sheet.body.querySelector('.chat-input');

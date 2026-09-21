@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Writes (or checks) public/twa/assetlinks.json, the file that lets the Android app open this site without a browser bar.
 //
-//   node scripts/make-assetlinks.mjs com.example.ammmaa AA:BB:...:FF [second fingerprint ...]
+//   node scripts/make-assetlinks.mjs com.example.anbudanamma AA:BB:...:FF [second fingerprint ...]
 //   node scripts/make-assetlinks.mjs --check          # validate the file that is there now
 //
 // Use the SHA-256 fingerprint of the key that signed the app people install. If the app is on Google Play with Play App
@@ -61,7 +61,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   } else {
     const [pkg, ...raw] = positional;
     if (!pkg || !raw.length) fail('Usage: node scripts/make-assetlinks.mjs <package.name> <SHA-256 fingerprint> [more fingerprints...]\n       node scripts/make-assetlinks.mjs --check');
-    if (!PACKAGE.test(pkg)) fail(`"${pkg}" is not a valid package name (like com.yourname.ammmaa).`);
+    if (!PACKAGE.test(pkg)) fail(`"${pkg}" is not a valid package name (like com.yourname.anbudanamma).`);
     const fingerprints = [...new Set(raw.map(normaliseFingerprint))];
     const bad = fingerprints.find((f) => !FINGERPRINT.test(f));
     if (bad) fail(`"${bad}" is not a SHA-256 fingerprint. It has 32 pairs of letters and digits separated by colons, like AA:BB:CC:...`);

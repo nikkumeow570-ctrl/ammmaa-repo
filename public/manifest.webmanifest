@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Ammmaa",
-  "short_name": "Ammmaa",
-  "description": "Amma checks in on you. Gentle reminders in Tamil, Tanglish or English.",
+  "name": "Anbudan Amma",
+  "short_name": "Anbudan Amma",
+  "description": "Anbudan Amma checks in on you. Gentle reminders in Tamil, Tanglish or English.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

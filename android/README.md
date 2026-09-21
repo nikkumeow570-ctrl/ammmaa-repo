@@ -1,6 +1,6 @@
 # Android app (Trusted Web Activity)
 
-A Trusted Web Activity (TWA) is a thin Android shell that opens the live Ammmaa site full screen, with no browser bar. Notifications still come from the web app's Web Push, so nothing changes in how reminders work.
+A Trusted Web Activity (TWA) is a thin Android shell that opens the live Anbudan Amma site full screen, with no browser bar. Notifications still come from the web app's Web Push, so nothing changes in how reminders work.
 
 **Because it loads the live site, web changes reach the Android app immediately.** You only rebuild the Android package to change its name, icon, colours, version or package ID.
 
@@ -19,8 +19,8 @@ A Trusted Web Activity (TWA) is a thin Android shell that opens the live Ammmaa 
 ## Fill this in once the app is built
 | | |
 |---|---|
-| Package ID | `com.yourname.ammmaa` (cannot be changed later on Google Play) |
-| App name | Ammmaa |
+| Package ID | `com.yourname.anbudanamma` (cannot be changed later on Google Play) |
+| App name | Anbudan Amma |
 | Version name / code | 1.0.0 / 1 (raise the code for every upload) |
 | Site URL used to build | `https://<your-site>` (the exact final address) |
 | Where the signing key is kept | |
@@ -32,7 +32,7 @@ A Trusted Web Activity (TWA) is a thin Android shell that opens the live Ammmaa 
 4. Download the zip. It contains the app files, `signing.keystore`, `signing-key-info.txt` and an `assetlinks.json`. Put the two key files somewhere private right away.
 5. **Link the site to the app.** Take the SHA-256 fingerprint from `signing-key-info.txt` (or from the `assetlinks.json` in the zip), then in the repo:
    ```
-   node scripts/make-assetlinks.mjs com.yourname.ammmaa "AA:BB:CC:...:FF"
+   node scripts/make-assetlinks.mjs com.yourname.anbudanamma "AA:BB:CC:...:FF"
    node scripts/make-assetlinks.mjs --check
    git add public/twa && git commit -m "Link the Android app" && git push
    ```
@@ -43,7 +43,7 @@ A Trusted Web Activity (TWA) is a thin Android shell that opens the live Ammmaa 
 - You need a Google Play Console developer account (a one-time fee; check the current amount). New accounts have had extra requirements, such as a closed test with a minimum number of testers for a minimum number of days. Read Google's current rules before planning a launch date.
 - Upload the `.aab` file, not the APK. With Play App Signing, Google re-signs the app with its own key, so the fingerprint people's phones see is Google's. Copy it from Play Console (Setup, App integrity) and add it next to your own:
   ```
-  node scripts/make-assetlinks.mjs com.yourname.ammmaa "<your upload key fingerprint>" "<Play app signing fingerprint>"
+  node scripts/make-assetlinks.mjs com.yourname.anbudanamma "<your upload key fingerprint>" "<Play app signing fingerprint>"
   ```
 - Use `https://<your-site>/privacy.html` as the privacy policy address, after adding a contact email to it. Chat text goes to an AI service, so mention that in the store's data-safety answers.
 - Before a public release, replace the prototype voice clips with a licensed voice and have a native speaker review the Tamil text.

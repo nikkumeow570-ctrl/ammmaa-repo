@@ -1,6 +1,6 @@
-const CACHE = 'ammmaa-v5';
+const CACHE = 'ammmaa-v6';
 const LOCAL = 'ammmaa-local'; // the person's own photo (never deleted when the app updates)
-const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/amma.js', '/voice.js', '/own.js', '/chat.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const SHELL = ['/', '/index.html', '/app.js', '/shared.js', '/amma.js', '/icons.js', '/voice.js', '/own.js', '/chat.js', '/style.css', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -67,7 +67,7 @@ self.addEventListener('push', (event) => {
       .then((c) => c.match('/local/amma.jpg'))
       .catch(() => null)
       .then((photo) =>
-        self.registration.showNotification(data.title || 'Ammmaa', {
+        self.registration.showNotification(data.title || 'Anbudan Amma', {
           body: data.body || '',
           icon: photo ? '/local/amma.jpg' : '/icons/icon-192.png',
           badge: '/icons/badge-96.png',

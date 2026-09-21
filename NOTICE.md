@@ -1,0 +1,17 @@
+# Notices
+
+Anbudan Amma is released under the [MIT licence](LICENSE). This page lists what that licence does and does not cover.
+
+## Third-party material that is not in this repository
+- **Fonts.** Manrope and Noto Sans Tamil are loaded from Google Fonts when the app runs. Both are published under the SIL Open Font License 1.1. No font files are stored here.
+- **AI services.** Chat and the optional nightly AI lines use Cloudflare Workers AI, and optionally Groq or Sarvam. Each has its own terms and privacy policy.
+- **Notifications.** Push messages travel through the push service of the person's browser (Google, Apple, Mozilla or Microsoft).
+
+## Generated audio is not covered by the MIT licence
+If `public/voice/` contains clips made with `scripts/make-voice.mjs`, they were generated with the unofficial `edge-tts` client of Microsoft's Edge read-aloud service. The rights to that audio are set by that service, not by this repository's licence. Check the terms before you redistribute the clips or use them commercially, and replace them with a licensed voice before a public launch.
+
+## Name and artwork
+The name **Anbudan Amma** and the cartoon Amma are the author's. The MIT licence does not grant any right to use the name as your own product's name, so please choose your own name if you publish a fork. The character is drawn in `public/amma.js`, and the icons in `public/icons.js` are hand-drawn for this project.
+
+## Inspiration
+The idea of a caring, Amma-like reminder was inspired by [Maaa](https://www.maaa.app/) on the desktop. This project shares no code or artwork with it.

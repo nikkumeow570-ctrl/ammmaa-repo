@@ -17,7 +17,7 @@ export const TONES = [
 
 export const KINDS = ['meal', 'water', 'break', 'call', 'bedtime', 'morning'];
 
-export const TITLES = { ta: 'அம்மா', tanglish: 'Ammmaa', en: 'Ammmaa' };
+export const TITLES = { ta: 'அன்புடன் அம்மா', tanglish: 'Anbudan Amma', en: 'Anbudan Amma' };
 
 export const ACTIONS = {
   ta: { done: 'சரி', later: '30 நிமிஷம் கழிச்சு' },

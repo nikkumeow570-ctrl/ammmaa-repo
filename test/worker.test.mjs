@@ -100,7 +100,7 @@ test('cron: sends due reminder, reschedules 24h later, drops stale, honours quie
   // Normal send
   let stats = await runDue(env, lunch.next_due + 3000, send);
   assert.equal(stats.sent, 1);
-  assert.equal(sent[0].payload.title, 'Ammmaa');
+  assert.equal(sent[0].payload.title, 'Anbudan Amma');
   assert.equal(sent[0].payload.kind, 'meal');
   assert.equal(sent[0].opts.urgency, 'high', 'scheduled reminders must be high urgency so idle phones wake up');
   assert.match(sent[0].payload.sig, /^[0-9a-f]{64}$/);

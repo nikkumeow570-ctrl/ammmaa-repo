@@ -14,8 +14,10 @@
   "devDependencies": {
     "wrangler": "^4"
   },
-  "description": "Caring Amma-style reminders as a PWA: Web Push on Cloudflare Workers + D1",
+  "description": "Anbudan Amma: caring Amma-style reminders as a PWA (Web Push on Cloudflare Workers + D1)",
   "engines": {
     "node": ">=22"
-  }
+  },
+  "license": "MIT",
+  "author": "NBoss"
 }

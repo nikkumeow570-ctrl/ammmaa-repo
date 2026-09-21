@@ -1,5 +1,6 @@
 import { LANGS, TONES, DEFAULTS, normalizeSettings, buildSlots, pickLine } from './shared.js';
 import { ammaSvg } from './amma.js';
+import { icon } from './icons.js';
 import * as V from './voice.js';
 import { createChat } from './chat.js';
 import { openRecorder, pickPhoto } from './own.js';
@@ -29,6 +30,9 @@ let state = load();
 const save = () => localStorage.setItem(KEY, JSON.stringify(state));
 
 // ---------- Tabs (Home, Chat, Reminders, More) ----------
+const brand = () =>
+  `<div class="brand"><span class="brand-mark">${icon('heart')}</span><span class="brand-text"><b>Anbudan Amma</b><small lang="ta">அன்புடன் அம்மா</small></span></div>`;
+
 const TABS = ['home', 'chat', 'reminders', 'more'];
 const tabFromHash = () => (TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home');
 let chatPanel = null; // one persistent chat panel, re-attached to the Chat tab after every render
@@ -171,7 +175,6 @@ function talkForm(withPreview) {
   );
 }
 
-const KIND_EMOJI = { meals: '🍛', water: '💧', breaks: '🧘', call: '📞', bedtime: '🌙', morning: '☀️' };
 
 function remindersForm() {
   const r = state.settings.reminders;
@@ -186,7 +189,7 @@ function remindersForm() {
   return `<div class="rows">${rows
     .map(
       ([k, title, hint, sub]) =>
-        `<div class="rcard${r[k].on ? ' on' : ''}"><div class="row"><span class="badge" aria-hidden="true">${KIND_EMOJI[k]}</span><label class="row-main" for="sw-${k}"><span class="row-title">${title}</span><span class="row-hint">${hint}</span></label><input id="sw-${k}" class="switch" type="checkbox" role="switch" data-path="reminders.${k}.on" data-rerender${r[k].on ? ' checked' : ''}></div>${
+        `<div class="rcard k-${k}${r[k].on ? ' on' : ''}"><div class="row"><span class="badge" aria-hidden="true">${icon(k)}</span><label class="row-main" for="sw-${k}"><span class="row-title">${title}</span><span class="row-hint">${hint}</span></label><input id="sw-${k}" class="switch" type="checkbox" role="switch" data-path="reminders.${k}.on" data-rerender${r[k].on ? ' checked' : ''}></div>${
           r[k].on ? `<div class="sub">${sub}</div>` : ''
         }</div>`,
     )
@@ -200,26 +203,26 @@ function quietForm() {
 
 function iosNote() {
   return IS_IOS && !isStandalone()
-    ? `<div class="note"><strong>One step on iPhone.</strong> Tap the Share button, choose Add to Home Screen, then open Ammmaa from your Home Screen. Notifications only work from there.</div>`
+    ? `<div class="note"><strong>One step on iPhone.</strong> Tap the Share button, choose Add to Home Screen, then open Anbudan Amma from your Home Screen. Notifications only work from there.</div>`
     : '';
 }
 
 function errorNote() {
   const msg = {
     denied: "Notifications are blocked for this site. Turn them on in your browser's site settings, then try again.",
-    unsupported: "This browser can't receive notifications. Try Chrome on Android, or add Ammmaa to your Home Screen on iPhone.",
+    unsupported: "This browser can't receive notifications. Try Chrome on Android, or add Anbudan Amma to your Home Screen on iPhone.",
     fail: ui.errorMsg || 'Something went wrong. Try again.',
   }[ui.error];
   return msg ? `<div class="note" role="alert">${esc(msg)}</div>` : '';
 }
 
 const installButton = () =>
-  ui.installEvent ? `<button type="button" class="btn btn-ghost btn-block" data-act="install">Install Ammmaa</button>` : '';
+  ui.installEvent ? `<button type="button" class="btn btn-ghost btn-block" data-act="install">Install Anbudan Amma</button>` : '';
 
 // ---------- Screens ----------
 function welcome() {
   return `<main class="welcome">
-    <div class="brand">Ammmaa<small lang="ta">அம்மா</small></div>
+    ${brand()}
     <div class="stage">
       <div class="bubble pop" role="img" aria-label="Amma asks: Have you eaten?">
         <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -228,8 +231,8 @@ function welcome() {
       <div class="arch">${ammaSvg('loving', { label: 'Amma, smiling warmly' })}</div>
     </div>
     <div class="welcome-copy">
-      <h1>Someone at home is thinking of you.</h1>
-      <p>Gentle reminders in Tamil, Tanglish or English.</p>
+      <h1>Anbudan Amma<span class="ta-name" lang="ta">அன்புடன் அம்மா</span></h1>
+      <p>Someone at home is thinking of you. Gentle reminders in Tamil, Tanglish or English.</p>
     </div>
     <div class="welcome-foot">
       <button type="button" class="btn btn-gold btn-block" data-act="start">Set up Amma</button>
@@ -265,16 +268,16 @@ function setup() {
 }
 
 const TAB_META = [
-  ['home', 'Home', '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/>'],
-  ['chat', 'Chat', '<path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>'],
-  ['reminders', 'Reminders', '<path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>'],
-  ['more', 'More', '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>'],
+  ['home', 'Home', 'home'],
+  ['chat', 'Chat', 'chat'],
+  ['reminders', 'Reminders', 'bell'],
+  ['more', 'More', 'more'],
 ];
 
 function tabbar() {
   return `<nav class="tabbar" aria-label="Main">${TAB_META.map(
-    ([id, label, icon]) =>
-      `<button type="button" class="tab" data-act="tab" data-tab="${id}"${ui.tab === id ? ' aria-current="page"' : ''}><span class="tab-ico"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span><span>${label}</span></button>`,
+    ([id, label, ico]) =>
+      `<button type="button" class="tab" data-act="tab" data-tab="${id}" aria-label="${label}"${ui.tab === id ? ' aria-current="page"' : ''}>${icon(ico)}<span class="tab-label">${label}</span></button>`,
   ).join('')}</nav>`;
 }
 
@@ -289,16 +292,23 @@ function blockedNote() {
 function homeTab() {
   const s = state.settings;
   const n = nextUp();
+  const hearable = V.canHear({ kind: ui.kind, text: ui.line, lang: s.lang });
   const banner = ui.hear && V.canHear({ kind: ui.hear.kind, text: ui.hear.text, lang: s.lang }) ? '<button type="button" class="hear-banner" data-act="hear-banner">🔊 Amma sent you a message. Tap to hear her</button>' : '';
   return `<header class="hero">
-      <div class="brand">Ammmaa<small lang="ta">அம்மா</small></div>
+      ${brand()}
       ${banner}
       <button type="button" class="say-big" data-act="another" lang="${langAttr(s.lang)}" aria-label="Amma says: ${esc(ui.line)}. Tap for another.">${esc(ui.line)}</button>
-      <div class="hero-actions">${V.canHear({ kind: ui.kind, text: ui.line, lang: s.lang }) ? '<button type="button" class="chip" data-act="hear">🔊 Hear Amma</button>' : ''}<button type="button" class="chip chip-gold" data-act="chat">💬 Talk to Amma</button></div>
       <div class="hero-art">${V.own.photoUrl ? `<img class="own-photo" src="${V.own.photoUrl}" alt="Your Amma">` : ammaSvg(mood(), { label: 'Amma' })}</div>
     </header>
-    <div class="next-card"><span class="ico" aria-hidden="true">⏰</span><div>${n ? `<small>Next reminder</small><b>${esc(n.label)}</b> ${esc(n.when)}` : 'No reminders are on. Turn one on in Reminders.'}</div></div>
-    <div class="home-body">${blockedNote()}</div>`;
+    <div class="home-body">
+      ${blockedNote()}
+      <div class="bento">
+        <div class="tile tile-wide tile-next"><span class="tile-ico" aria-hidden="true">${icon('clock')}</span><div><small>Next reminder</small>${n ? `<b>${esc(n.label)}</b> <span>${esc(n.when)}</span>` : '<b>Nothing scheduled</b> <span>Turn one on in Reminders</span>'}</div></div>
+        <button type="button" class="tile tile-chat${hearable ? '' : ' tile-wide'}" data-act="chat"><span class="tile-ico" aria-hidden="true">${icon('chat')}</span><b>Talk to Amma</b><small>Ask her anything</small></button>
+        ${hearable ? `<button type="button" class="tile tile-hear" data-act="hear"><span class="tile-ico" aria-hidden="true">${icon('speaker')}</span><b>Hear Amma</b><small>She says it aloud</small></button>` : ''}
+        <div class="tile tile-wide tile-mood">${seg("Amma's mood", 'h-tone', 'tone', TONES, s.tone)}</div>
+      </div>
+    </div>`;
 }
 
 function remindersTab() {
@@ -362,14 +372,29 @@ function render() {
   window.scrollTo(0, y);
 }
 
+// Cross-fades between screens where the browser supports View Transitions; otherwise just switches.
+function transition(update) {
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    try {
+      document.startViewTransition(update);
+      return;
+    } catch {
+      /* fall back below */
+    }
+  }
+  update();
+}
+
 function setTab(tab) {
   if (!TABS.includes(tab) || ui.view !== 'home') return;
   if (tab === ui.tab) return window.scrollTo({ top: 0, behavior: 'smooth' });
   if (ui.tab === 'chat' && chatPanel) chatPanel.pause();
   ui.tab = tab;
   history.pushState(null, '', tab === 'home' ? location.pathname + location.search : `#${tab}`);
-  render();
-  window.scrollTo(0, 0);
+  transition(() => {
+    render();
+    window.scrollTo(0, 0);
+  });
 }
 
 // The phone's back button walks back through the tabs instead of closing the app.
@@ -379,8 +404,10 @@ window.addEventListener('popstate', () => {
   if (t === ui.tab) return;
   if (ui.tab === 'chat' && chatPanel) chatPanel.pause();
   ui.tab = t;
-  render();
-  window.scrollTo(0, 0);
+  transition(() => {
+    render();
+    window.scrollTo(0, 0);
+  });
 });
 
 function go(view, step = 0) {
@@ -511,9 +538,9 @@ const OWN_KINDS = [
 
 function ownSection() {
   const photo = V.own.photoUrl;
-  const rows = OWN_KINDS.map(([k, icon, label]) => {
+  const rows = OWN_KINDS.map(([k, , label]) => {
     const has = V.own.clips.has(k);
-    return `<div class="rcard own-row${has ? ' on' : ''}"><div class="row"><span class="badge" aria-hidden="true">${icon}</span><div class="row-main"><span class="row-title">${label}</span><span class="row-hint">${has ? "Amma's voice is saved" : 'Not recorded yet'}</span></div>${
+    return `<div class="rcard k-${{ meal: 'meals', break: 'breaks' }[k] || k} own-row${has ? ' on' : ''}"><div class="row"><span class="badge" aria-hidden="true">${icon(k)}</span><div class="row-main"><span class="row-title">${label}</span><span class="row-hint">${has ? "Amma's voice is saved" : 'Not recorded yet'}</span></div>${
       has ? `<button type="button" class="icon-btn" data-act="rec-play" data-kind="${k}" aria-label="Play the ${label} recording">▶</button><button type="button" class="icon-btn" data-act="rec-del" data-kind="${k}" aria-label="Delete the ${label} recording">🗑</button>` : ''
     }<button type="button" class="btn btn-ghost btn-sm" data-act="rec" data-kind="${k}" data-label="${label}">${has ? 'Redo' : 'Record'}</button></div></div>`;
   }).join('');
@@ -549,7 +576,7 @@ async function enable() {
   if (ui.busy) return;
   ui.error = '';
   const needsHomeScreen = IS_IOS && !isStandalone();
-  if (needsHomeScreen) return toast('Add Ammmaa to your Home Screen first, then open it from there.');
+  if (needsHomeScreen) return toast('Add Anbudan Amma to your Home Screen first, then open it from there.');
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     ui.error = 'unsupported';
     return render();
