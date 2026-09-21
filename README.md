@@ -20,7 +20,7 @@ Gentle reminders in Tamil, Tanglish or English, from a cartoon mother who worrie
 <p align="center"><sub>Screenshots come from a headless test browser with system fonts and a made-up chat line, so on a real phone the text looks a little different.</sub></p>
 
 ## Contents
-[What it does](#what-it-does) · [How it works](#how-it-works) · [Get it running](#get-it-running) · [Configuration](#configuration) · [Voice and your own Amma](#voice-and-your-own-amma) · [Chat and AI](#chat-and-ai) · [Project layout](#project-layout) · [Development](#development) · [Privacy and safety](#privacy-and-safety) · [Troubleshooting](#troubleshooting) · [Roadmap](#roadmap)
+[What it does](#what-it-does) · [How it works](#how-it-works) · [Get it running](#get-it-running) · [Android app](#android-app) · [Configuration](#configuration) · [Voice and your own Amma](#voice-and-your-own-amma) · [Chat and AI](#chat-and-ai) · [Project layout](#project-layout) · [Development](#development) · [Privacy and safety](#privacy-and-safety) · [Troubleshooting](#troubleshooting) · [Roadmap](#roadmap)
 
 ## What it does
 Ammmaa is a progressive web app (PWA). You install it on your phone, pick a language and a mood, and Amma sends you the small nudges a mother would: eat, drink water, rest your eyes, call home, go to sleep.
@@ -87,6 +87,9 @@ npx wrangler secret put APP_SECRET
 npm run deploy
 ```
 
+## Android app
+The Android app is a Trusted Web Activity: a thin shell that opens the live site with no browser bar. It lives in this same repo as documentation and a small link file, not as a separate project, because the web app stays the only source of truth and web changes reach the Android app immediately. Build it with PWABuilder and link it to the site with `scripts/make-assetlinks.mjs`. The full steps, and what must never be committed (the signing key), are in [`android/README.md`](android/README.md).
+
 ## Configuration
 Set variables in `wrangler.jsonc` (a value typed in the dashboard is overwritten on the next deploy). Set secrets in the dashboard or with `wrangler secret put`.
 
@@ -127,17 +130,19 @@ Commit `public/voice/`. Without clips, the speaker button uses the phone's own v
 ```
 public/       the PWA: index.html, app.js (screens and tabs), style.css, sw.js (service worker),
               shared.js (message bank and settings), amma.js (the cartoon), chat.js, voice.js, own.js,
-              privacy.html, voice/ (clips), icons/
+              privacy.html, voice/ (clips), twa/assetlinks.json (Android link file), icons/
 src/          the Worker: index.js (API), cron.js (sender), push.js (Web Push), chat.js, ai.js, time.js, auth.js
 test/         node:test suites (no network needed)
-scripts/      gen-vapid.mjs (push keys), make-voice.mjs (voice clips), make-icons.py (app icons from amma.js)
+scripts/      gen-vapid.mjs (push keys), make-voice.mjs (voice clips), make-icons.py (app icons from amma.js),
+              make-assetlinks.mjs (writes and checks the Android link file)
 docs/         README screenshots
+android/      how to build and publish the Android app (no keys, no build output)
 schema.sql    D1 schema         wrangler.jsonc    Worker config
 ```
 
 ## Development
 ```
-npm test                        # 44 unit tests, Node 22+, no network
+npm test                        # 49 unit tests, Node 22+, no network
 ```
 - CI runs the same command on every push (`.github/workflows/test.yml`). The suite does not depend on the time of day.
 - **After changing anything in `public/`,** bump the `CACHE` name in `public/sw.js`, or installed apps keep showing the old version.
@@ -169,7 +174,8 @@ Amma is an AI character. She gives no medical, legal or financial advice, and th
 - [ ] "How should Amma call you?" (kanna, da or di)
 - [ ] Birthdays, festivals and your own messages
 - [ ] A licensed voice for the clips; a native-speaker review of every Tamil line
-- [ ] Android app wrapper (Trusted Web Activity) and Play Store listing
+- [ ] Android app (Trusted Web Activity): the steps and link file are ready in [`android/`](android/README.md); it still has to be built and tested on a phone
+- [ ] Play Store listing
 - [ ] Optional native features: home-screen widget, alarm-style reminders
 
 ## Credits and licence

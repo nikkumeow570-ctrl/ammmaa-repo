@@ -196,9 +196,21 @@ async function route(request, env) {
   throw new HttpError(404, 'Not found');
 }
 
+// Android (Trusted Web Activity) checks https://<site>/.well-known/assetlinks.json to hide the browser bar.
+// The file lives at public/twa/assetlinks.json, because static-asset uploads can skip dot-folders; we serve it here.
+async function assetLinks(request, env) {
+  const res = await env.ASSETS.fetch(new Request(new URL('/twa/assetlinks.json', request.url), { method: 'GET' }));
+  if (!res.ok) return new Response('Not found', { status: 404 });
+  return new Response(request.method === 'HEAD' ? null : res.body, {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=300' },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
+    if (pathname === '/.well-known/assetlinks.json' && (request.method === 'GET' || request.method === 'HEAD')) return assetLinks(request, env);
     if (!pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       return await route(request, env);

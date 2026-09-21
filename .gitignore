@@ -1,4 +1,13 @@
 node_modules/
-gen-vapid*
-package-lock.json
+.wrangler/
 .dev.vars
+.env
+*.log
+.DS_Store
+# Android signing material (PWABuilder / bubblewrap): never commit
+*.keystore
+*.jks
+signing-key-info.txt
+# Built Android packages: publish them as GitHub Release files instead
+*.apk
+*.aab
