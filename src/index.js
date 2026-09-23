@@ -4,7 +4,8 @@ import { isAllowedEndpoint, sendPush } from './push.js';
 import { randomId, sha256hex, safeEqual, snoozeSig } from './auth.js';
 import { runDue } from './cron.js';
 import { generateAiLines } from './ai.js';
-import { chatTurn } from './chat.js';
+import { chatTurn, speakChatReply } from './chat.js';
+import { b64ToBytes } from './tts.js';
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -179,12 +180,22 @@ async function chat(request, env) {
   return json(out);
 }
 
+// Speaks one AI chat reply aloud with Sarvam. Separate from Amma's real recordings and the pre-made clips, which
+// the app plays straight from /voice/*.mp3 and never go through the Worker.
+async function chatVoice(request, env) {
+  const body = await readJson(request);
+  const row = await authed(env, body);
+  const out = await speakChatReply(env, row, body);
+  if (out.error) throw new HttpError(out.status, out.error);
+  return new Response(b64ToBytes(out.audio), { headers: { 'content-type': 'audio/wav', 'cache-control': 'no-store', 'x-voice-left': String(out.left) } });
+}
+
 async function route(request, env) {
   const { pathname } = new URL(request.url);
   const post = request.method === 'POST';
   if (pathname === '/api/config' && request.method === 'GET') {
     if (!env.VAPID_PUBLIC_KEY) throw new HttpError(500, 'Server is not configured yet');
-    return json({ publicKey: env.VAPID_PUBLIC_KEY });
+    return json({ publicKey: env.VAPID_PUBLIC_KEY, aiVoice: !!env.SARVAM_API_KEY });
   }
   if (post && pathname === '/api/subscribe') return subscribe(request, env);
   if (post && pathname === '/api/update') return update(request, env);
@@ -193,6 +204,7 @@ async function route(request, env) {
   if (post && pathname === '/api/snooze') return snooze(request, env);
   if (post && pathname === '/api/status') return status(request, env);
   if (post && pathname === '/api/chat') return chat(request, env);
+  if (post && pathname === '/api/chat/voice') return chatVoice(request, env);
   throw new HttpError(404, 'Not found');
 }
 

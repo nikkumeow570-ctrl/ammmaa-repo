@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import worker from '../src/index.js';
 import { MESSAGES } from '../public/shared.js';
-import { chatTurn, isDistress, cleanReply, systemPrompt, DISTRESS_REPLY } from '../src/chat.js';
+import { chatTurn, speakChatReply, isDistress, cleanReply, systemPrompt, DISTRESS_REPLY } from '../src/chat.js';
 import { bytesToB64u } from '../src/push.js';
 
 function fakeD1() {
@@ -150,4 +150,74 @@ test('chat: Amma is written as a mother in her fifties, in the chosen voice, wit
     }
   }
   assert.match(systemPrompt('en', 'loving'), /helpline/);
+});
+
+// ---------- Amma's spoken AI voice (Sarvam) ----------
+test('chat: systemPrompt asks for a casual, texting register and bans corporate-assistant phrases', () => {
+  const p = systemPrompt('en', 'loving');
+  assert.match(p, /texting/i);
+  assert.match(p, /I understand/); // named as a banned phrase
+  assert.match(p, /feel free to/);
+  assert.match(p, /Contractions/);
+  assert.match(p, /Them: "/); // a real back-and-forth example, not just monologue lines
+});
+
+test('voice: off by default (no SARVAM_API_KEY), so it never silently spends money', async () => {
+  const { env } = mkEnv();
+  const out = await speakChatReply(env, row(), { text: 'Eat something warm, kanna.' });
+  assert.equal(out.status, 501);
+  assert.match(out.error, /not turned on/);
+});
+
+test('voice: with a key, calls Sarvam with the right language and returns audio plus what is left today', async () => {
+  const { env } = mkEnv({ SARVAM_API_KEY: 'k', CHAT_VOICE_DAILY: '3' });
+  let sent;
+  globalThis.fetch = async (url, init) => ((sent = { url, body: JSON.parse(init.body) }), new Response(JSON.stringify({ audios: ['aGk='] }), { status: 200 }));
+  const out = await speakChatReply(env, row({ settings: JSON.stringify({ lang: 'tanglish', tone: 'loving' }) }), { text: 'Saaptiya kanna?' });
+  assert.equal(sent.url, 'https://api.sarvam.ai/text-to-speech');
+  assert.equal(sent.body.target_language_code, 'ta-IN');
+  assert.equal(out.audio, 'aGk=');
+  assert.equal(out.left, 2);
+});
+
+test('voice: has its own daily cap, separate from the text chat cap', async () => {
+  const { env } = mkEnv({ SARVAM_API_KEY: 'k', CHAT_VOICE_DAILY: '2', CHAT_DAILY: '50' });
+  globalThis.fetch = async () => new Response(JSON.stringify({ audios: ['YQ=='] }), { status: 200 });
+  const r = row();
+  assert.equal((await speakChatReply(env, r, { text: 'one' })).left, 1);
+  assert.equal((await speakChatReply(env, r, { text: 'two' })).left, 0);
+  const third = await speakChatReply(env, r, { text: 'three' });
+  assert.equal(third.status, 429);
+  assert.equal(third.left, 0);
+  // text chat is untouched by the voice cap
+  const chatOut = await chatTurn(env, r, { text: 'hello' });
+  assert.equal(chatOut.left, 49);
+});
+
+test('voice: empty text and a Sarvam failure fail clearly, without breaking anything else', async () => {
+  const { env } = mkEnv({ SARVAM_API_KEY: 'k' });
+  assert.equal((await speakChatReply(env, row(), { text: '   ' })).status, 400);
+  globalThis.fetch = async () => new Response('server error', { status: 500 });
+  const out = await speakChatReply(env, row(), { text: 'hi' });
+  assert.equal(out.status, 502);
+});
+
+test('api: POST /api/chat/voice returns playable audio with the right content type, and a JSON error otherwise', async () => {
+  const { env } = mkEnv({ SARVAM_API_KEY: 'k' });
+  const { id, token } = await (await call(env, '/api/subscribe', { subscription: browserSub(), tz: 'Asia/Kolkata', settings: {} })).json();
+  globalThis.fetch = async () => new Response(JSON.stringify({ audios: ['aGVsbG8h'] }), { status: 200 });
+  const res = await call(env, '/api/chat/voice', { id, token, text: 'Saaptiya kanna?' });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'audio/wav');
+  assert.equal(res.headers.get('x-voice-left'), '5');
+  assert.equal(Buffer.from(await res.arrayBuffer()).toString('utf8'), 'hello!');
+
+  const { env: off } = mkEnv();
+  const sub2 = await (await call(off, '/api/subscribe', { subscription: browserSub(), tz: 'Asia/Kolkata', settings: {} })).json();
+  const disabled = await call(off, '/api/chat/voice', sub2);
+  assert.equal(disabled.status, 501);
+  assert.match((await disabled.json()).error, /not turned on/);
+
+  const bad = await call(env, '/api/chat/voice', { id, token: 'wrong', text: 'hi' });
+  assert.equal(bad.status, 401);
 });

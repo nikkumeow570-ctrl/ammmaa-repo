@@ -44,3 +44,12 @@ CREATE TABLE IF NOT EXISTS chat_usage (
   n       INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (sub_id, day)
 );
+
+-- Amma's AI voice (Sarvam), speaking chat replies aloud: how many times each phone used it today.
+-- Separate from chat_usage because audio costs more than text and has its own, smaller daily cap.
+CREATE TABLE IF NOT EXISTS tts_usage (
+  sub_id  TEXT NOT NULL,
+  day     TEXT NOT NULL,
+  n       INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (sub_id, day)
+);

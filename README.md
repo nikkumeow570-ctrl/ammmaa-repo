@@ -120,7 +120,10 @@ Set variables in `wrangler.jsonc` (a value typed in the dashboard is overwritten
 | `CHAT_PROVIDER` | var (optional) | `workers-ai` (default), `groq` or `sarvam`. Workers AI is always the backup |
 | `CHAT_DAILY` | var (optional) | Chat messages per phone per day. Default 12 |
 | `GROQ_API_KEY`, `GROQ_MODEL` | secret, var | Only for `groq` (default model `llama-3.3-70b-versatile`) |
-| `SARVAM_API_KEY`, `SARVAM_MODEL` | secret, var | Only for `sarvam`. The request format is untested against the live service |
+| `SARVAM_API_KEY`, `SARVAM_MODEL` | secret, var | Only for `CHAT_PROVIDER=sarvam` (chat text). The request format is untested against the live service |
+| `SARVAM_API_KEY` (alone) | secret | Also turns on Amma's spoken AI voice in Chat (`/api/chat/voice`, Sarvam Bulbul text-to-speech) — separate from `CHAT_PROVIDER` |
+| `SARVAM_TTS_SPEAKER`, `SARVAM_TTS_MODEL`, `SARVAM_TTS_PACE` | var (optional) | Voice, model (default `bulbul:v2`) and speed (default `1.0`) for the AI voice |
+| `CHAT_VOICE_DAILY` | var (optional) | AI voice plays per phone per day. Default 6 (smaller than `CHAT_DAILY`: audio costs more than text) |
 
 Cron triggers are set in `wrangler.jsonc`: `* * * * *` (send reminders) and `0 21 * * *` (write AI lines).
 
@@ -137,9 +140,10 @@ Commit `public/voice/`. Without clips, the speaker button uses the phone's own v
 **Your own Amma** (More tab). A photo (cropped square and shrunk on the phone) and short recordings of her voice for each reminder type. Everything is kept in the browser's storage (IndexedDB and Cache Storage) and never uploaded. When a line is played, her own recording comes first, then the pre-made clip, then the phone's voice. Once she has recorded something, Home only shows lines about the topics she recorded, so Hear Amma plays her real voice. In Chat, a "Her voice" chip plays one of her recordings, and a reply about food, water, sleep, breaks, calls or mornings gets a heart button that plays her recording of that topic (a new AI sentence can never be in her real voice). Tapping Hear on a line with no recording uses the phone's voice and says why. Voice cloning is deliberately not part of this project.
 
 ## Chat and AI
-- **Chat** (`src/chat.js`, `public/chat.js`). Replies come from the configured provider. Amma is written as a Tamil mother in her early fifties, and her own lines are given to the model as examples of how she talks. There is no trained model: the persona and the examples do the work.
+- **Chat** (`src/chat.js`, `public/chat.js`). Replies come from the configured provider (`CHAT_PROVIDER`). Amma is written to text like a real person, not a support bot: short, casual, contractions, no "I understand"/"feel free to" corporate phrasing. She's written as a Tamil mother in her early fifties, and her own reminder lines plus a couple of sample exchanges are given to the model as examples of her voice. There is no trained model: the persona and the examples do the work.
 - **Safety net.** Messages that suggest serious distress (English, Tanglish and Tamil keywords) get a fixed, caring reply that mentions India's free Tele-MANAS helpline (14416) and never reach the AI. A keyword list is only a net, so the prompt also tells the model how to respond. Have a native speaker review the Tamil text.
-- **Limits and fallback.** After the daily limit, or if every provider fails, Amma answers with one of her ready-made lines.
+- **Limits and fallback.** After the daily limit, or if every provider fails, Amma answers with one of her ready-made lines (marked `fallback: true`, so the app never offers a paid AI voice for it — see below).
+- **Amma's spoken AI voice** (`src/tts.js`, `SARVAM_API_KEY`). Off by default. When set, a chat reply that came from the AI (not a fallback line, not the safety reply) gets a sparkle-icon button that speaks that exact sentence with Sarvam's Bulbul text-to-speech, and the chat header offers a quick sample. This is deliberately separate from Amma's real recordings (heart icon, see [Voice and your own Amma](#voice-and-your-own-amma)) and from the pre-made Edge TTS clips (speaker icon): it is a synthesized voice reading new, AI-written sentences, and the app never blends it with anything that sounds like a real recording. Costs money per call (see Sarvam's pricing), has its own daily cap (`CHAT_VOICE_DAILY`), and the request shape is unverified against a live account — check your dashboard before relying on it, and read Sarvam's Commercial Licensing terms before shipping it publicly.
 - **AI variations** (`AI_VARIATIONS=on`). Every night at 21:00 UTC (02:30 IST) Workers AI writes new lines for one language (they rotate). About a third of reminder notifications then use one. Lines must be short (about 8 words), in the right script, and link-free. The in-app preview and the voice clips only use the hand-written lines. To see what was written, run `SELECT lang, tone, kind, text FROM ai_lines` in the D1 console.
 
 ## Project layout
@@ -159,7 +163,7 @@ LICENSE       MIT               NOTICE.md         what the licence does not cove
 
 ## Development
 ```
-npm test                        # 53 unit tests, Node 22+, no network
+npm test                        # unit tests, Node 22+, no network (count grows with each feature)
 ```
 - CI runs the same command on every push (`.github/workflows/test.yml`). The suite does not depend on the time of day.
 - **After changing anything in `public/`,** bump the `CACHE` name in `public/sw.js`, or installed apps keep showing the old version.

@@ -322,6 +322,7 @@ button.tile:active { transform: scale(0.972); }
 .voice-chip[hidden] { display: none; }
 .voice-chip .ic, .own-voice .ic { width: 17px; height: 17px; fill: currentColor; stroke: none; }
 .msg .own-voice { display: grid; place-items: center; background: var(--rose-soft); color: var(--rose); }
+.msg .ai-voice { display: grid; place-items: center; background: var(--accent-soft); color: var(--on-accent); }
 
 /* ---------- Floating tab bar ---------- */
 .tabbar {

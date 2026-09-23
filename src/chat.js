@@ -1,4 +1,5 @@
 import { LANGS, TONES, KINDS, MESSAGES, normalizeSettings, pickLine } from '../public/shared.js';
+import { sarvamSpeak } from './tts.js';
 
 // ---------- Prompt ----------
 const LANG_DESC = {
@@ -16,16 +17,29 @@ const TONE_DESC = {
 // the persona and these examples are what make the replies sound like her).
 const EXAMPLE_KINDS = ['meal', 'water', 'bedtime', 'call'];
 
+// Two-line back-and-forth so the model copies a CONVERSATION register, not the one-line monologue register of a
+// reminder notification. Only "en" and "loving" are written by hand; other languages/tones reuse these with a note,
+// since the point is the shape of a reply (short, casual, no corporate padding), not exact translation.
+const CHAT_SAMPLE = [
+  ['I skipped lunch again', 'Aiyo again? Go eat something now, even if it\'s just curd rice. We\'ll talk after 🍚'],
+  ['I\'m tired', 'Mm. Sit down for two minutes. Did you drink water today at all?'],
+  ['can you help me write an email', 'Kanna I\'m not that kind of help — ask me about food, sleep, or your day 😄'],
+];
+
 export function systemPrompt(lang, tone) {
   const examples = EXAMPLE_KINDS.map((k) => MESSAGES[lang]?.[tone]?.[k]?.[0])
     .filter(Boolean)
     .map((l) => `- ${l}`)
     .join('\n');
+  const chat = CHAT_SAMPLE.map(([u, a]) => `Them: "${u}"\nYou: "${a}"`).join('\n');
   return (
-    `You are Amma, a Tamil mother in her early fifties, chatting with her grown-up child who lives away from home. You are an AI character inside a small reminder app.\n` +
-    `Who you are: warm, practical and a little dramatic. You have spent years cooking, worrying and waiting for phone calls. You think in homely things: food, water, sleep, rest, the weather, calling home, what the elders say. You notice when they sound tired or have skipped a meal. You are not modern or techy, and you never use slang, hashtags, bullet points or business English.\n` +
-    `How you speak: reply in ${LANG_DESC[lang]}. Tone: ${TONE_DESC[tone]}. Call them "kanna" or "chellam" and never assume their gender. Use 1 to 3 short sentences, at most one gentle question, and at most one emoji.\n` +
-    `Your own words sound like these, so keep this style:\n${examples}\n` +
+    `You are Amma, a Tamil mother in her early fifties, TEXTING her grown-up child who lives away from home over chat — not writing a letter, not giving a speech. You are an AI character inside a small reminder app.\n` +
+    `Who you are: warm, practical and a little dramatic. You have spent years cooking, worrying and waiting for phone calls. You think in homely things: food, water, sleep, rest, the weather, calling home, what the elders say. You notice when they sound tired or have skipped a meal.\n` +
+    `How you actually talk: like texting, not an essay. Short. Contractions ("we'll", "don't", "that's"). Sentence fragments are fine ("Good. Now eat something."). Interrupt yourself if it feels natural ("Wait — did you eat?"). ` +
+    `NEVER sound like customer support or an assistant: banned phrases include "I understand", "I appreciate", "feel free to", "let me know if", "I'm here to help", "is there anything else". No bullet points, no numbered lists, no "firstly/additionally", no formal punctuation like semicolons. ` +
+    `Reply in ${LANG_DESC[lang]}. Tone: ${TONE_DESC[tone]}. Call them "kanna" or "chellam" and never assume their gender. Usually just 1 short sentence, sometimes 2. At most one gentle question. At most one emoji, and often none.\n` +
+    `Here is how a real exchange with you goes (style only — reply in ${lang === 'en' ? 'English' : LANG_DESC[lang]}, not necessarily these exact words):\n${chat}\n` +
+    `Her reminder lines sound like this, so match this warmth:\n${examples}\n` +
     `Never give medical, legal or financial advice: say what a mother would, and tell them to ask a doctor or an elder. You are an AI, not a real person: if asked, say so kindly and say you are here to look after them. ` +
     `If the person sounds very sad or hopeless, or mentions hurting themselves, respond with warmth, tell them they matter, and encourage them to talk to someone they trust or a local helpline right now.`
   );
@@ -126,24 +140,30 @@ async function generate(env, messages) {
   throw lastErr || new Error('no provider');
 }
 
-// ---------- Daily cap (per phone) ----------
+// ---------- Daily caps (per phone) ----------
 // Created on first use, once per database binding (so the live database needs no manual migration).
-const usageTableReady = new WeakSet();
-async function countUse(env) {
-  if (!usageTableReady.has(env.DB)) {
-    await env.DB.prepare('CREATE TABLE IF NOT EXISTS chat_usage (sub_id TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (sub_id, day))').run();
-    usageTableReady.add(env.DB);
+const readyTables = new WeakMap(); // env.DB -> Set of table names already ensured to exist
+
+async function ensureUsageTable(env, table) {
+  let done = readyTables.get(env.DB);
+  if (!done) readyTables.set(env.DB, (done = new Set()));
+  if (!done.has(table)) {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS ${table} (sub_id TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (sub_id, day))`).run();
+    done.add(table);
   }
 }
 
-async function bumpUsage(env, subId, now) {
-  await countUse(env);
+async function bumpUsageIn(env, table, subId, now) {
+  await ensureUsageTable(env, table);
   const day = new Date(now).toISOString().slice(0, 10);
-  const row = await env.DB.prepare('INSERT INTO chat_usage (sub_id, day, n) VALUES (?, ?, 1) ON CONFLICT(sub_id, day) DO UPDATE SET n = n + 1 RETURNING n').bind(subId, day).first();
+  const row = await env.DB.prepare(`INSERT INTO ${table} (sub_id, day, n) VALUES (?, ?, 1) ON CONFLICT(sub_id, day) DO UPDATE SET n = n + 1 RETURNING n`).bind(subId, day).first();
   const n = row ? row.n : 1;
-  if (n === 1) await env.DB.prepare('DELETE FROM chat_usage WHERE day < ?').bind(new Date(now - 3 * 864e5).toISOString().slice(0, 10)).run();
+  if (n === 1) await env.DB.prepare(`DELETE FROM ${table} WHERE day < ?`).bind(new Date(now - 3 * 864e5).toISOString().slice(0, 10)).run();
   return n;
 }
+
+const bumpUsage = (env, subId, now) => bumpUsageIn(env, 'chat_usage', subId, now);
+const bumpVoiceUsage = (env, subId, now) => bumpUsageIn(env, 'tts_usage', subId, now);
 
 // ---------- One chat turn ----------
 const clip = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -191,5 +211,41 @@ export async function chatTurn(env, row, body, now = Date.now()) {
   } catch (e) {
     console.error('chat failed', e && e.message);
     return { reply: fallbackLine(lang, tone), fallback: true, left };
+  }
+}
+
+// ---------- Speaking a chat reply aloud (Sarvam) ----------
+// Deliberately separate from Amma's real recordings and from the pre-made Edge TTS clips: this speaks NEW,
+// AI-written sentences, so it must never be confused with her actual voice. Off by default (needs SARVAM_API_KEY).
+const TTS_MAX_CHARS = 220; // comfortably above a real chat reply; keeps a stray long request cheap
+
+/**
+ * @param row  the authenticated `subs` row
+ * @param body { text, lang? }
+ * @returns { audio: base64 wav, left } or { error, status }
+ */
+export async function speakChatReply(env, row, body, now = Date.now()) {
+  if (!env.SARVAM_API_KEY) return { error: "Amma's AI voice is not turned on for this app yet.", status: 501 };
+  const text = clip(body && body.text, TTS_MAX_CHARS);
+  if (!text) return { error: 'Nothing to say.', status: 400 };
+
+  let settings = {};
+  try {
+    settings = normalizeSettings(JSON.parse(row.settings || '{}'));
+  } catch {
+    settings = normalizeSettings({});
+  }
+  const lang = LANGS.some((l) => l.id === (body && body.lang)) ? body.lang : settings.lang;
+  const cap = Math.max(1, Number(env.CHAT_VOICE_DAILY) || 6); // audio costs more than text, so a smaller cap by default
+
+  const used = await bumpVoiceUsage(env, row.id, now);
+  if (used > cap) return { error: "That's enough of Amma's AI voice for today.", status: 429, left: 0 };
+
+  try {
+    const audio = await sarvamSpeak(env, text, lang);
+    return { audio, left: Math.max(0, cap - used) };
+  } catch (e) {
+    console.error('tts failed', e && e.message);
+    return { error: "Couldn't make her voice right now.", status: 502 };
   }
 }

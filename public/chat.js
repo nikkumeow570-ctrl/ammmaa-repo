@@ -28,7 +28,20 @@ function loadLog() {
 /**
  * @param ctx { lang(), tone(), id(), token(), api(path, body), onLost() }
  */
+// Whether the server has an AI voice turned on (Sarvam). Checked once per app load, shared by every chat panel.
+let aiVoiceKnown = null;
+async function checkAiVoice() {
+  if (aiVoiceKnown !== null) return aiVoiceKnown;
+  try {
+    aiVoiceKnown = !!(await (await fetch('/api/config')).json()).aiVoice;
+  } catch {
+    aiVoiceKnown = false;
+  }
+  return aiVoiceKnown;
+}
+
 export function createChat(ctx) {
+  let hasAiVoice = aiVoiceKnown === true;
   const el = document.createElement('section');
   el.className = 'chat-tab';
   el.setAttribute('aria-label', 'Chat with Amma');
@@ -64,7 +77,13 @@ export function createChat(ctx) {
     // Her real recording of the same topic (a reply about food offers her "have you eaten?" recording).
     const kind = m.role === 'assistant' && !m.safety ? topicKind(m.text) : '';
     const hers = kind && own.clips.has(kind) ? `<button type="button" class="say own-voice" data-c="own" data-k="${kind}" aria-label="Hear her real voice">${icon('heart')}</button>` : '';
-    return `<div class="msg ${m.role === 'user' ? 'user' : 'amma'}${m.safety ? ' safety' : ''}"><p lang="${langAttr(ctx.lang())}">${esc(m.text)}</p>${say}${hers}</div>`;
+    // A synthesized AI voice for the sentence itself, when the server has it turned on. Never offered on a
+    // pre-written fallback line (those already have a real pre-made clip via "say" above) or a safety reply.
+    const ai =
+      hasAiVoice && m.role === 'assistant' && !m.safety && !m.fallback
+        ? `<button type="button" class="say ai-voice" data-c="ai" data-i="${i}" aria-label="Hear this in Amma's AI voice">${icon('spark')}</button>`
+        : '';
+    return `<div class="msg ${m.role === 'user' ? 'user' : 'amma'}${m.safety ? ' safety' : ''}"><p lang="${langAttr(ctx.lang())}">${esc(m.text)}</p>${say}${hers}${ai}</div>`;
   }
 
   async function playOwn(kind) {
@@ -74,6 +93,35 @@ export function createChat(ctx) {
       else setNote("Couldn't find that recording.");
     } catch {
       setNote("Couldn't play that recording.");
+    }
+  }
+
+  // A synthesized voice for a new AI sentence — never Amma's real voice, and always labelled as such in the UI.
+  async function playAiVoice(text) {
+    stopAudio();
+    try {
+      const res = await fetch('/api/chat/voice', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: ctx.id(), token: ctx.token(), text, lang: ctx.lang() }),
+      });
+      if (res.status === 401) return ctx.onLost();
+      if (!res.ok) {
+        let msg = "Couldn't get Amma's AI voice.";
+        try {
+          const j = await res.json();
+          if (j.error) msg = j.error;
+        } catch {
+          /* keep the default message */
+        }
+        return setNote(msg);
+      }
+      const blob = await res.blob();
+      const left = Number(res.headers.get('x-voice-left'));
+      await play(blob); // show the low-allowance note only once she has actually spoken, so a playback error never hides it
+      if (Number.isFinite(left) && left <= 2) setNote(`${left} AI voice play${left === 1 ? '' : 's'} left today.`);
+    } catch {
+      setNote("Couldn't get Amma's AI voice.");
     }
   }
 
@@ -101,7 +149,7 @@ export function createChat(ctx) {
     draw();
     try {
       const out = await ctx.api('/api/chat', { id: ctx.id(), token: ctx.token(), text, history, lang: ctx.lang(), tone: ctx.tone() });
-      msgs.push({ role: 'assistant', text: out.reply, safety: !!out.safety });
+      msgs.push({ role: 'assistant', text: out.reply, safety: !!out.safety, fallback: !!out.fallback });
       if (typeof out.left === 'number') left = out.left;
       if (out.limited) setNote("That's all the chatting for today. Amma will be back tomorrow, and her reminders keep coming.");
       else if (left !== null && left <= 3) setNote(`${left} chat message${left === 1 ? '' : 's'} left today.`);
@@ -139,6 +187,10 @@ export function createChat(ctx) {
         return m && hear({ text: m.text, lang: ctx.lang() });
       }
       case 'own': return playOwn(b.dataset.k);
+      case 'ai': {
+        const m = msgs[Number(b.dataset.i)];
+        return m && playAiVoice(m.text);
+      }
       case 'myvoice': {
         const kinds = [...own.clips];
         return kinds.length && playOwn(kinds[Math.floor(Math.random() * kinds.length)]);
@@ -167,6 +219,10 @@ export function createChat(ctx) {
   });
 
   draw();
+  checkAiVoice().then((v) => {
+    hasAiVoice = v;
+    draw();
+  });
 
   const head = el.querySelector('.chat-head');
   // Language or mood may have changed on the More tab since the panel was last shown.
